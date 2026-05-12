@@ -1438,15 +1438,8 @@ function buildFeed(){
     s.innerHTML = `<div class="slide-bg" id="vbg_${i}" style="background:${v.bg||'#000'}"></div><div class="vig"></div>
     <div class="ai-badge"><span class="ai-dot"></span>ИИ · Для тебя</div>
     <div class="side-btns" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()">
-      <div class="s-btn" id="likeBtn${i}"
-        onclick="fLike(${i})"
-        ontouchstart="event.stopPropagation();startSpeed(${i})"
-        ontouchend="event.stopPropagation();stopSpeed(${i})"
-        ontouchcancel="event.stopPropagation();stopSpeed(${i})">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <defs><linearGradient id="hg${i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ff4b6e"/><stop offset="100%" stop-color="#ff9a3c"/></linearGradient></defs>
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="url(#hg${i})" fill="none" id="likeHeart${i}"/>
-        </svg>
+      <div class="s-btn" id="likeBtn${i}" onclick="fLike(${i})">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
         <span id="fl${i}">${v.lk}</span>
       </div>
       <div class="s-btn" onclick="openComments(${i})">
@@ -1457,11 +1450,7 @@ function buildFeed(){
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
         <span>Репост</span>
       </div>
-      <div class="s-btn" id="soundBtn" ontouchstart="event.stopPropagation()" onclick="toggleSoundBtn()">
-        <svg id="soundIcoOn" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-        <svg id="soundIcoOff" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-        <span id="soundLbl">Звук</span>
-      </div>
+
     </div>
     <div class="slide-info" ontouchstart="event.stopPropagation()">
       <div class="au-row">
@@ -1519,7 +1508,7 @@ function buildFeed(){
         isHolding = true;
         if (sharedVideo && !sharedVideo.paused) {
           sharedVideo.pause();
-          // пауза без иконки
+          showFeedHint('⏸');
         }
       }, 350);
     }, {passive: true});
@@ -1550,7 +1539,7 @@ function buildFeed(){
       // Resume video if was paused by hold
       if (isHolding && sharedVideo && sharedVideo.paused) {
         sharedVideo.play().catch(()=>{});
-        // возобновление без иконки
+        showFeedHint('▶');
         isHolding = false;
         return;
       }
@@ -1577,8 +1566,7 @@ function buildFeed(){
             if (lastTapTime === now) { // no second tap came
               if (sharedVideo) {
                 sharedVideo.muted = !sharedVideo.muted;
-                updateSoundIcon();
-                showFeedHint(sharedVideo.muted ? '🔇' : '🔊');
+                                showFeedHint(sharedVideo.muted ? '🔇' : '🔊');
               }
             }
           }, 300);
@@ -1719,7 +1707,6 @@ function playSlideVideo(idx) {
     vid.load();
   }
   vid.muted = false;
-  updateSoundIcon();
   preloadNextVideo(idx);
 
   const tryPlay = () => {
@@ -1753,7 +1740,7 @@ async function fLike(i) {
 
   // Update heart SVG colour
   const btn  = document.getElementById('likeBtn'+i);
-  const heart = document.getElementById('likeHeart'+i);
+
   if (btn) {
     const svg = btn.querySelector('svg');
     if (svg) {
