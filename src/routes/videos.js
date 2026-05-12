@@ -3,19 +3,72 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuid } from 'uuid';
+import FormDataNode from 'form-data';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-const uploadDir = './uploads/videos';
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const KINESCOPE_TOKEN   = process.env.KINESCOPE_TOKEN || '';
+const KINESCOPE_PROJECT = process.env.KINESCOPE_PROJECT || '';
+const KINESCOPE_API     = 'https://api.kinescope.io/v1';
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname)}`),
+async function uploadToKinescope(buffer, filename, title) {
+  // 1. Создаём видео в Kinescope
+  const createRes = await fetch(`${KINESCOPE_API}/videos`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${KINESCOPE_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      project_id: KINESCOPE_PROJECT,
+      title: title || filename,
+    }),
+  });
+
+  if (!createRes.ok) {
+    const err = await createRes.text();
+    throw new Error(`Kinescope create error: ${err}`);
+  }
+
+  const { data: video } = await createRes.json();
+  const videoId = video.id;
+
+  // 2. Получаем URL для загрузки
+  const uploadRes = await fetch(`${KINESCOPE_API}/videos/${videoId}/upload`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${KINESCOPE_TOKEN}` },
+  });
+
+  if (!uploadRes.ok) throw new Error('Kinescope upload URL error');
+  const { data: uploadData } = await uploadRes.json();
+
+  // 3. Загружаем файл через multipart
+  const fd = new FormDataNode();
+  fd.append('file', buffer, { filename, contentType: 'video/mp4' });
+
+  const putRes = await fetch(uploadData.upload_url, {
+    method: 'PUT',
+    headers: fd.getHeaders(),
+    body: fd,
+  });
+
+  if (!putRes.ok) throw new Error(`Kinescope put error: ${putRes.status}`);
+
+  // Возвращаем URL для воспроизведения
+  return {
+    fileUrl: `https://kinescope.io/${videoId}`,
+    embedUrl: `https://kinescope.io/embed/${videoId}`,
+    videoId,
+  };
+}
+
+// Multer в память
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500*1024*1024 },
 });
-const upload = multer({ storage, limits: { fileSize: 500*1024*1024 } });
 
 async function fmt(v, viewerId) {
   const author = await dbGet('SELECT id,name,handle,avatar_url FROM users WHERE id=$1', [v.user_id]) || {};
@@ -36,17 +89,35 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
   const { title, description, tags, is_public, allow_comments, has_ai_badge } = req.body;
   if (!title) return res.status(400).json({ error: 'Название обязательно' });
   try {
+    let fileUrl;
+    let fileSize = req.file.size;
+
+    if (KINESCOPE_TOKEN && KINESCOPE_PROJECT) {
+      // Загружаем в Kinescope
+      const result = await uploadToKinescope(req.file.buffer, req.file.originalname, title);
+      fileUrl = result.fileUrl;
+    } else {
+      // Fallback — локальный диск
+      const dir = './uploads/videos';
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const filename = `${uuid()}${path.extname(req.file.originalname)}`;
+      fs.writeFileSync(`${dir}/${filename}`, req.file.buffer);
+      fileUrl = `/uploads/videos/${filename}`;
+    }
+
     const id = uuid();
-    const fileUrl = `/uploads/videos/${req.file.filename}`;
     const parsedTags = (() => { try { return tags ? JSON.stringify(JSON.parse(tags)) : '[]'; } catch { return JSON.stringify((tags||'').split(',').map(t=>t.trim()).filter(Boolean)); } })();
     await dbRun(
       'INSERT INTO videos (id,user_id,title,description,file_path,tags,is_public,allow_comments,has_ai_badge,file_size) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
       [id, req.user.id, title, description||null, fileUrl, parsedTags,
-       is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge?1:0, req.file.size]
+       is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge?1:0, fileSize]
     );
     const video = await dbGet('SELECT * FROM videos WHERE id=$1', [id]);
     res.status(201).json({ video: await fmt(video, req.user.id) });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) {
+    console.error('Upload error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/feed', optionalAuth, async (req, res) => {
