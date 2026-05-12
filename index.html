@@ -29,6 +29,58 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
 .trend-difficulty.medium{background:rgba(251,191,36,.2);color:#fbbf24;}
 .trend-body{padding:12px 14px;flex:1;display:flex;flex-direction:column;justify-content:center;}
 .trend-cat{font-size:10px;color:rgba(255,255,255,.3);margin-bottom:4px;font-weight:500;}
+.trend-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;}
+.trend-steps-preview{display:flex;gap:4px;}
+.trend-step-dot{font-size:14px;}
+
+/* ── TREND WIZARD ── */
+.trend-wizard{position:fixed;inset:0;background:#0b0b0f;z-index:200;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
+.trend-wizard.open{transform:translateX(0);}
+.tw-header{display:flex;align-items:center;gap:12px;padding:max(env(safe-area-inset-top,44px),16px) 16px 12px;border-bottom:.5px solid rgba(255,255,255,.08);flex-shrink:0;}
+.tw-back{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.tw-title{flex:1;}
+.tw-name{font-size:16px;font-weight:700;color:#fff;}
+.tw-sub{font-size:11px;color:rgba(255,255,255,.3);margin-top:1px;}
+/* Steps nav */
+.tw-steps{display:flex;align-items:center;gap:0;padding:10px 16px;border-bottom:.5px solid rgba(255,255,255,.06);overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+.tw-steps::-webkit-scrollbar{display:none;}
+.tw-step{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:12px;color:rgba(255,255,255,.35);white-space:nowrap;transition:all .2s;border:.5px solid transparent;}
+.tw-step.active{background:rgba(242,193,46,.1);border-color:rgba(242,193,46,.3);color:#F2C12E;font-weight:600;}
+.tw-step.done{color:rgba(74,222,128,.7);}
+.tw-step-ico{font-size:14px;}
+.tw-step-num{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:rgba(255,255,255,.4);}
+.tw-step.active .tw-step-num{background:#F2C12E;color:#0b0b0f;}
+.tw-step.done .tw-step-num{background:rgba(74,222,128,.3);color:#4ade80;}
+/* Content area */
+.tw-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;}
+.tw-prompt-area{padding:12px 16px;background:rgba(255,255,255,.03);border-bottom:.5px solid rgba(255,255,255,.06);flex-shrink:0;}
+.tw-prompt-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:6px;}
+.tw-prompt-text{font-size:12px;color:rgba(255,255,255,.5);line-height:1.6;}
+.tw-result{flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
+.tw-result-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:8px;opacity:.4;}
+.tw-result-ico{font-size:40px;}
+.tw-result-hint{font-size:13px;color:rgba(255,255,255,.4);text-align:center;}
+/* Result cards */
+.tw-text-result{background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.7;white-space:pre-wrap;}
+.tw-img-result{border-radius:14px;overflow:hidden;background:rgba(255,255,255,.04);aspect-ratio:1;display:flex;align-items:center;justify-content:center;}
+.tw-img-result img{width:100%;height:100%;object-fit:cover;}
+.tw-video-result{border-radius:14px;overflow:hidden;background:#000;aspect-ratio:9/16;max-height:400px;display:flex;align-items:center;justify-content:center;}
+.tw-video-result video{width:100%;height:100%;object-fit:cover;}
+/* Bottom bar */
+.tw-bottom{padding:12px 16px max(env(safe-area-inset-bottom,0)+12px,20px);border-top:.5px solid rgba(255,255,255,.08);flex-shrink:0;display:flex;gap:8px;}
+.tw-gen-btn{flex:1;height:50px;background:#F2C12E;border:none;border-radius:14px;font-size:15px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;}
+.tw-gen-btn:disabled{opacity:.5;}
+.tw-next-btn{height:50px;padding:0 18px;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:14px;font-size:13px;font-weight:600;color:rgba(255,255,255,.6);cursor:pointer;font-family:-apple-system,sans-serif;white-space:nowrap;}
+.tw-copy-btn{height:36px;padding:0 14px;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:10px;font-size:12px;color:rgba(255,255,255,.5);cursor:pointer;font-family:-apple-system,sans-serif;}
+.trend-card{border-radius:16px;overflow:hidden;background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.07);cursor:pointer;transition:transform .15s;display:flex;gap:0;flex-direction:row;margin-bottom:10px;}
+.trend-card:active{transform:scale(.98);}
+.trend-preview{width:100px;min-height:120px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;}
+.trend-views{position:absolute;bottom:6px;left:6px;font-size:10px;color:rgba(255,255,255,.6);background:rgba(0,0,0,.4);padding:2px 6px;border-radius:10px;}
+.trend-difficulty{position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;}
+.trend-difficulty.easy{background:rgba(74,222,128,.2);color:#4ade80;}
+.trend-difficulty.medium{background:rgba(251,191,36,.2);color:#fbbf24;}
+.trend-body{padding:12px 14px;flex:1;display:flex;flex-direction:column;justify-content:center;}
+.trend-cat{font-size:10px;color:rgba(255,255,255,.3);margin-bottom:4px;font-weight:500;}
 .trend-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;}
 .trend-tags{font-size:11px;color:rgba(99,102,241,.6);margin-bottom:8px;}
 .trend-btn{font-size:12px;color:#F2C12E;font-weight:600;}
@@ -649,6 +701,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       </div>
     </div>
     <p class="auth-foot">Принимаю <a href="#">Условия</a> и <a href="#">Политику</a></p>
+  </div>
+
+  <!-- TREND WIZARD -->
+  <div class="trend-wizard" id="trendWizard">
+    <div class="tw-header">
+      <div class="tw-back" onclick="closeTrendWizard()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      </div>
+      <div class="tw-title">
+        <div class="tw-name" id="twName">Тренд</div>
+        <div class="tw-sub" id="twSub">Шаг 1 из 4</div>
+      </div>
+    </div>
+    <div class="tw-steps" id="twSteps"></div>
+    <div class="tw-content">
+      <div class="tw-prompt-area">
+        <div class="tw-prompt-label">Промпт</div>
+        <div class="tw-prompt-text" id="twPromptText"></div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="tw-copy-btn" onclick="twEditPrompt()">✎ Изменить</button>
+          <button class="tw-copy-btn" id="twCopyPrompt" onclick="twCopyPromptFn()">⧉ Копировать</button>
+        </div>
+        <textarea id="twPromptEdit" style="display:none;width:100%;margin-top:8px;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px;color:#fff;font-size:12px;font-family:-apple-system,sans-serif;resize:vertical;min-height:80px;" placeholder="Измени промпт..."></textarea>
+      </div>
+      <div class="tw-result" id="twResult">
+        <div class="tw-result-empty" id="twEmpty">
+          <div class="tw-result-ico" id="twEmptyIco">✨</div>
+          <div class="tw-result-hint">Нажми кнопку ниже чтобы сгенерировать</div>
+        </div>
+      </div>
+    </div>
+    <div class="tw-bottom">
+      <button class="tw-gen-btn" id="twGenBtn" onclick="twGenerate()">
+        <span id="twGenBtnTxt">Сгенерировать</span>
+      </button>
+      <button class="tw-next-btn" id="twNextBtn" style="display:none;" onclick="twNextStep()">Далее →</button>
+    </div>
   </div>
 
   <!-- ONBOARDING -->
@@ -2002,17 +2091,18 @@ const TRENDS = [
     emoji: '🐺',
     category: 'Природа',
     difficulty: 'Легко',
-    model: 'Kling v1.6',
     preview_color: 'linear-gradient(135deg,#0f2027,#2c5364)',
     views: '2.4M',
-    prompt: 'A lone wolf walking through a frozen mountain valley, snow falling gently, cinematic wide shot, golden hour light reflecting off the snow, 4K, photorealistic',
-    instructions: [
-      'Открой вкладку Видео → Видео из текста',
-      'Выбери стиль: Реализм',
-      'Вставь промпт и нажми Сгенерировать',
-      'Опубликуй с хэштегами #природа #волк #kling',
+    steps: [
+      { id: 1, name: 'Сценарий', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude',
+        prompt: 'Напиши короткий драматичный сценарий для 30-секундного видео про одинокого волка в снежных горах. Стиль: кинематографичный, атмосферный. Включи описание сцены и закадровый текст.' },
+      { id: 2, name: 'Обложка', icon: '🖼', tool: 'image', model: 'pollinations',
+        prompt: 'A lone wolf standing on a snowy mountain peak, dramatic lighting, cinematic wide shot, photorealistic, 4K, epic landscape, winter storm in background' },
+      { id: 3, name: 'Видео', icon: '🎬', tool: 'video', model: 'kling-video/v1.6/standard/text-to-video',
+        prompt: 'A lone wolf walking through a frozen mountain valley, snow falling gently, cinematic wide shot, golden hour light reflecting off the snow, 4K, photorealistic' },
+      { id: 4, name: 'Озвучка', icon: '🎙', tool: 'voice', model: 'elevenlabs',
+        prompt: 'В снежных горах, где только ветер нарушает тишину, одинокий волк прокладывает свой путь. Некоторые рождены, чтобы идти одному.' },
     ],
-    tags: '#природа #волк #горы #kling #ai',
   },
   {
     id: 'tr2',
@@ -2020,17 +2110,18 @@ const TRENDS = [
     emoji: '🌆',
     category: 'Городской',
     difficulty: 'Легко',
-    model: 'Kling v1.6',
     preview_color: 'linear-gradient(135deg,#1a1a2e,#e94560)',
     views: '5.1M',
-    prompt: 'Cyberpunk city at night, neon lights reflecting on wet streets, flying cars in the sky, cinematic drone shot slowly descending, ultra detailed, 4K',
-    instructions: [
-      'Открой вкладку Видео → Видео из текста',
-      'Выбери стиль: Кинематограф',
-      'Вставь промпт и нажми Сгенерировать',
-      'Опубликуй с хэштегами #киберпанк #город #ai',
+    steps: [
+      { id: 1, name: 'Сценарий', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude',
+        prompt: 'Напиши атмосферный текст для 30-секундного видео про киберпанк город будущего. Стиль: noir, загадочный. Описание улиц, неоновых огней и жизни города.' },
+      { id: 2, name: 'Обложка', icon: '🖼', tool: 'image', model: 'pollinations',
+        prompt: 'Cyberpunk city at night, neon lights reflecting on wet streets, flying cars, rain, ultra detailed, cinematic, 4K, blade runner style' },
+      { id: 3, name: 'Видео', icon: '🎬', tool: 'video', model: 'kling-video/v1.6/standard/text-to-video',
+        prompt: 'Cyberpunk city at night, neon lights reflecting on wet streets, flying cars in the sky, cinematic drone shot slowly descending, ultra detailed, 4K' },
+      { id: 4, name: 'Озвучка', icon: '🎙', tool: 'voice', model: 'elevenlabs',
+        prompt: 'Город никогда не спит. Миллион историй в каждом окне. Неон отражается в лужах, и ты один из них — частица этого бесконечного потока.' },
     ],
-    tags: '#киберпанк #город #неон #kling #ai',
   },
   {
     id: 'tr3',
@@ -2038,35 +2129,37 @@ const TRENDS = [
     emoji: '🌸',
     category: 'Аниме',
     difficulty: 'Легко',
-    model: 'Kling v1.6',
     preview_color: 'linear-gradient(135deg,#4a044e,#f472b6)',
     views: '8.7M',
-    prompt: 'Beautiful anime girl standing under cherry blossom tree, petals falling around her, soft wind, Studio Ghibli style, warm sunlight, cinematic shot',
-    instructions: [
-      'Открой вкладку Видео → Видео из текста',
-      'Выбери стиль: Аниме',
-      'Вставь промпт и нажми Сгенерировать',
-      'Добавь музыку и опубликуй',
+    steps: [
+      { id: 1, name: 'Сценарий', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude',
+        prompt: 'Напиши лирический текст для аниме-видео про девушку под деревом сакуры весной. Стиль: Studio Ghibli, нежный, поэтичный, про весну и мечты.' },
+      { id: 2, name: 'Обложка', icon: '🖼', tool: 'image', model: 'pollinations',
+        prompt: 'Beautiful anime girl under cherry blossom tree, petals falling, soft sunlight, Studio Ghibli style, pastel colors, dreamy atmosphere, detailed illustration' },
+      { id: 3, name: 'Видео', icon: '🎬', tool: 'video', model: 'kling-video/v1.6/standard/text-to-video',
+        prompt: 'Beautiful anime girl standing under cherry blossom tree, petals falling around her, soft wind, Studio Ghibli style, warm sunlight, cinematic shot' },
+      { id: 4, name: 'Озвучка', icon: '🎙', tool: 'voice', model: 'elevenlabs',
+        prompt: 'Лепестки сакуры падают медленно, как страницы несбывшихся желаний. Весна приходит и уходит, но этот момент остаётся навсегда.' },
     ],
-    tags: '#аниме #сакура #ghibli #kling #ai',
   },
   {
     id: 'tr4',
-    title: 'Океанские волны на рассвете',
-    emoji: '🌊',
-    category: 'Природа',
+    title: 'Космический закат',
+    emoji: '🚀',
+    category: 'Космос',
     difficulty: 'Легко',
-    model: 'Kling v1.6',
-    preview_color: 'linear-gradient(135deg,#0f4c75,#1b9aaa)',
-    views: '3.2M',
-    prompt: 'Ocean waves crashing on rocky shore at sunrise, golden light on water, slow motion, cinematic, peaceful atmosphere, birds flying in background',
-    instructions: [
-      'Открой вкладку Видео → Видео из текста',
-      'Выбери стиль: Реализм',
-      'Вставь промпт и нажми Сгенерировать',
-      'Опубликуй с расслабляющей музыкой',
+    preview_color: 'linear-gradient(135deg,#0d0d2b,#f97316)',
+    views: '6.8M',
+    steps: [
+      { id: 1, name: 'Сценарий', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude',
+        prompt: 'Напиши вдохновляющий текст для видео про астронавта на чужой планете, наблюдающего закат. Стиль: эпический, философский, про одиночество и величие вселенной.' },
+      { id: 2, name: 'Обложка', icon: '🖼', tool: 'image', model: 'pollinations',
+        prompt: 'Astronaut standing on alien planet surface watching twin suns setting, purple sky, distant mountains, cinematic wide shot, photorealistic, epic scale' },
+      { id: 3, name: 'Видео', icon: '🎬', tool: 'video', model: 'kling-video/v1.6/standard/text-to-video',
+        prompt: 'Astronaut standing on alien planet surface watching twin suns setting, purple sky with stars, distant mountains, cinematic wide shot, epic scale, photorealistic' },
+      { id: 4, name: 'Озвучка', icon: '🎙', tool: 'voice', model: 'elevenlabs',
+        prompt: 'Среди миллиардов звёзд, на краю неизведанного мира, человек смотрит на закат двух солнц. И понимает — он не одинок во вселенной.' },
     ],
-    tags: '#океан #рассвет #природа #kling #ai',
   },
   {
     id: 'tr5',
@@ -2074,37 +2167,43 @@ const TRENDS = [
     emoji: '🐉',
     category: 'Фэнтези',
     difficulty: 'Средне',
-    model: 'Kling v1.6',
     preview_color: 'linear-gradient(135deg,#1a0533,#6b21a8)',
     views: '12.3M',
-    prompt: 'Massive dragon flying over a medieval castle at dusk, fire breathing, epic cinematic scale, storm clouds in background, dramatic lighting, 4K',
-    instructions: [
-      'Открой вкладку Видео → Видео из текста',
-      'Выбери стиль: Кинематограф',
-      'Вставь промпт и нажми Сгенерировать',
-      'Добавь эпическую музыку перед публикацией',
+    steps: [
+      { id: 1, name: 'Сценарий', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude',
+        prompt: 'Напиши эпический текст для фэнтези-видео про дракона над средневековым замком. Стиль: эпическое фэнтези, драматичный, как из трейлера фильма.' },
+      { id: 2, name: 'Обложка', icon: '🖼', tool: 'image', model: 'pollinations',
+        prompt: 'Massive dragon flying over medieval castle at dusk, fire breathing, storm clouds, dramatic lighting, epic fantasy, ultra detailed, cinematic, 4K' },
+      { id: 3, name: 'Видео', icon: '🎬', tool: 'video', model: 'kling-video/v1.6/standard/text-to-video',
+        prompt: 'Massive dragon flying over a medieval castle at dusk, fire breathing, epic cinematic scale, storm clouds in background, dramatic lighting, 4K' },
+      { id: 4, name: 'Озвучка', icon: '🎙', tool: 'voice', model: 'elevenlabs',
+        prompt: 'Легенды говорили о нём тысячи лет. И вот он пришёл — древний, могущественный, неудержимый. Пламя его дыхания осветило ночное небо.' },
     ],
-    tags: '#дракон #фэнтези #замок #kling #ai',
   },
   {
     id: 'tr6',
-    title: 'Космический закат',
-    emoji: '🚀',
-    category: 'Космос',
+    title: 'Океанские волны',
+    emoji: '🌊',
+    category: 'Природа',
     difficulty: 'Легко',
-    model: 'Kling v1.6',
-    preview_color: 'linear-gradient(135deg,#0d0d2b,#f97316)',
-    views: '6.8M',
-    prompt: 'Astronaut standing on alien planet surface watching twin suns setting, purple sky, distant mountains, cinematic wide shot, epic scale, photorealistic',
-    instructions: [
-      'Открой вкладку Видео → Видео из текста',
-      'Выбери стиль: Реализм или Кинематограф',
-      'Вставь промпт и нажми Сгенерировать',
-      'Опубликуй с космической музыкой',
+    preview_color: 'linear-gradient(135deg,#0f4c75,#1b9aaa)',
+    views: '3.2M',
+    steps: [
+      { id: 1, name: 'Сценарий', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude',
+        prompt: 'Напиши медитативный текст для видео про океанские волны на рассвете. Стиль: расслабляющий, созерцательный, про природу и покой.' },
+      { id: 2, name: 'Обложка', icon: '🖼', tool: 'image', model: 'pollinations',
+        prompt: 'Ocean waves crashing on rocky shore at sunrise, golden light on water, slow motion, cinematic, peaceful, birds flying, photorealistic, 4K' },
+      { id: 3, name: 'Видео', icon: '🎬', tool: 'video', model: 'kling-video/v1.6/standard/text-to-video',
+        prompt: 'Ocean waves crashing on rocky shore at sunrise, golden light on water, slow motion, cinematic, peaceful atmosphere, birds flying in background' },
+      { id: 4, name: 'Озвучка', icon: '🎙', tool: 'voice', model: 'elevenlabs',
+        prompt: 'Океан дышит в своём ритме — вечном и неспешном. Каждая волна приносит что-то новое и уносит то, что было. Просто дыши вместе с ним.' },
     ],
-    tags: '#космос #астронавт #планета #kling #ai',
   },
 ];
+
+// Текущий активный тренд и шаг
+let activeTrend = null;
+let activeTrendStep = 0;
 let activeCreateTab = 'trends';
 
 function renderCreate() {
@@ -2161,80 +2260,306 @@ function renderTrends() {
   if (!live) return;
 
   live.style.gridTemplateColumns = '1fr';
-  live.innerHTML = TRENDS.map(t => `
-    <div class="trend-card" onclick="openTrend('${t.id}')">
-      <div class="trend-preview" style="background:${t.preview_color}">
-        <span style="font-size:36px;">${t.emoji}</span>
-        <div class="trend-views">👁 ${t.views}</div>
-        <div class="trend-difficulty ${t.difficulty === 'Легко' ? 'easy' : 'medium'}">${t.difficulty}</div>
-      </div>
-      <div class="trend-body">
-        <div class="trend-cat">${t.category} · ${t.model}</div>
-        <div class="trend-title">${t.title}</div>
-        <div class="trend-tags">${t.tags}</div>
-        <div class="trend-btn">Попробовать →</div>
-      </div>
-    </div>`).join('');
+  live.innerHTML = '';
 
-  // Restore grid for other tabs
+  TRENDS.forEach(function(t) {
+    const card = document.createElement('div');
+    card.className = 'trend-card';
+    card.innerHTML =
+      '<div class="trend-preview" style="background:' + t.preview_color + '">' +
+        '<span style="font-size:36px;">' + t.emoji + '</span>' +
+        '<div class="trend-views">👁 ' + t.views + '</div>' +
+        '<div class="trend-difficulty ' + (t.difficulty === 'Легко' ? 'easy' : 'medium') + '">' + t.difficulty + '</div>' +
+      '</div>' +
+      '<div class="trend-body">' +
+        '<div class="trend-cat">' + t.category + '</div>' +
+        '<div class="trend-title">' + t.title + '</div>' +
+        '<div class="trend-steps-preview">' + t.steps.map(function(s){ return '<span class="trend-step-dot">' + s.icon + '</span>'; }).join('') + '</div>' +
+      '</div>';
+    card.onclick = (function(id){ return function(){ openTrendWizard(id); }; })(t.id);
+    live.appendChild(card);
+  });
+
   live.style.gridTemplateColumns = '';
 }
 
-function openTrend(id) {
-  const t = TRENDS.find(x => x.id === id);
+// ── TREND WIZARD ─────────────────────────────────────────
+const twResults = {}; // сохраняем результаты каждого шага
+let twGenerating = false;
+
+function openTrendWizard(id) {
+  const t = TRENDS.find(function(x){ return x.id === id; });
   if (!t) return;
+  activeTrend = t;
+  activeTrendStep = 0;
+  // Сбрасываем результаты
+  Object.keys(twResults).forEach(function(k){ delete twResults[k]; });
+  // Заполняем шапку
+  document.getElementById('twName').textContent = t.emoji + ' ' + t.title;
+  // Рендерим шаги
+  twRenderSteps();
+  twLoadStep(0);
+  // Открываем
+  document.getElementById('trendWizard').classList.add('open');
+}
 
-  const page = document.getElementById('aiChatPage');
-  if (!page) return;
+function closeTrendWizard() {
+  document.getElementById('trendWizard').classList.remove('open');
+  activeTrend = null;
+  activeTrendStep = 0;
+}
 
-  // Set up like a video tool
-  aiChatTool = TOOLS.find(x => x.id === 'video') || TOOLS[0];
-  aiChatStyle = 'Кинематограф';
+function twRenderSteps() {
+  const t = activeTrend;
+  const bar = document.getElementById('twSteps');
+  bar.innerHTML = '';
+  t.steps.forEach(function(s, i) {
+    const el = document.createElement('div');
+    const isDone = !!twResults[i];
+    const isActive = i === activeTrendStep;
+    el.className = 'tw-step' + (isActive ? ' active' : '') + (isDone ? ' done' : '');
+    el.innerHTML =
+      '<span class="tw-step-num">' + (isDone ? '✓' : (i+1)) + '</span>' +
+      '<span class="tw-step-ico">' + s.icon + '</span>' +
+      '<span>' + s.name + '</span>';
+    el.onclick = (function(idx){ return function(){ twGoStep(idx); }; })(i);
+    bar.appendChild(el);
+  });
+}
 
-  document.getElementById('aiChatName').textContent = t.title;
-  document.getElementById('aiChatModel').textContent = t.model;
+function twGoStep(idx) {
+  activeTrendStep = idx;
+  twRenderSteps();
+  twLoadStep(idx);
+}
 
-  const ms = document.getElementById('aiModelSelector');
-  const tms = document.getElementById('aiTextModelSelector');
-  if (ms) ms.style.display = 'block';
-  if (tms) tms.style.display = 'none';
-  initModelSelector();
+function twLoadStep(idx) {
+  const t = activeTrend;
+  const step = t.steps[idx];
+  const total = t.steps.length;
 
-  // Show chips hidden
-  const chips = document.getElementById('aiStyleChips');
-  if (chips) chips.style.display = 'none';
+  document.getElementById('twSub').textContent = 'Шаг ' + (idx+1) + ' из ' + total + ' · ' + step.name;
 
-  // Show trend instructions
-  const msgs = document.getElementById('aiChatMsgs');
-  if (msgs) {
-    msgs.innerHTML = `
-      <div style="background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:8px;">
-        <div style="font-size:22px;margin-bottom:8px;">${t.emoji}</div>
-        <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:4px;">${t.title}</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.35);margin-bottom:12px;">${t.category} · 👁 ${t.views} просмотров</div>
-        <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:8px;">📋 Инструкция:</div>
-        ${t.instructions.map((step, i) => `
-          <div style="display:flex;gap:10px;margin-bottom:6px;font-size:13px;color:rgba(255,255,255,.7);">
-            <span style="width:20px;height:20px;border-radius:50%;background:rgba(242,193,46,.2);color:#F2C12E;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${i+1}</span>
-            <span>${step}</span>
-          </div>`).join('')}
-        <div style="margin-top:14px;background:rgba(99,102,241,.1);border:.5px solid rgba(99,102,241,.3);border-radius:12px;padding:12px;">
-          <div style="font-size:11px;color:rgba(99,102,241,.8);margin-bottom:6px;font-weight:600;">ПРОМПТ (уже вставлен):</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.5;">${t.prompt}</div>
-        </div>
-        <div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:10px;">${t.tags}</div>
-      </div>`;
-    // Pre-fill input with prompt
-    const input = document.getElementById('aiChatInput');
-    if (input) {
-      input.value = t.prompt;
-      input.style.height = 'auto';
-      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-    }
+  // Промпт
+  const promptEl = document.getElementById('twPromptText');
+  const editEl   = document.getElementById('twPromptEdit');
+  promptEl.textContent = step.prompt;
+  promptEl.style.display = '';
+  editEl.style.display = 'none';
+  editEl.value = step.prompt;
+
+  // Результат
+  const resEl = document.getElementById('twResult');
+  const emptyEl = document.getElementById('twEmpty');
+  const emptyIco = document.getElementById('twEmptyIco');
+
+  if (twResults[idx]) {
+    twShowResult(idx, twResults[idx]);
+  } else {
+    emptyIco.textContent = step.icon;
+    resEl.innerHTML = '';
+    resEl.appendChild(emptyEl);
+    emptyEl.style.display = 'flex';
   }
 
-  page.classList.add('open');
+  // Кнопки
+  const genBtn  = document.getElementById('twGenBtn');
+  const nextBtn = document.getElementById('twNextBtn');
+  const labels  = { text: 'Написать текст', image: 'Создать изображение', video: 'Сгенерировать видео', voice: 'Озвучить' };
+  document.getElementById('twGenBtnTxt').textContent = labels[step.tool] || 'Сгенерировать';
+  genBtn.disabled = false;
+  nextBtn.style.display = (twResults[idx] && idx < total-1) ? 'flex' : 'none';
 }
+
+function twEditPrompt() {
+  const promptEl = document.getElementById('twPromptText');
+  const editEl   = document.getElementById('twPromptEdit');
+  if (editEl.style.display === 'none') {
+    editEl.style.display = 'block';
+    promptEl.style.display = 'none';
+    editEl.focus();
+  } else {
+    editEl.style.display = 'none';
+    promptEl.style.display = '';
+    promptEl.textContent = editEl.value;
+  }
+}
+
+function twCopyPromptFn() {
+  const editEl = document.getElementById('twPromptEdit');
+  const promptEl = document.getElementById('twPromptText');
+  const text = editEl.style.display !== 'none' ? editEl.value : promptEl.textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(text);
+  document.getElementById('twCopyPrompt').textContent = '✓ Скопировано';
+  setTimeout(function(){ document.getElementById('twCopyPrompt').textContent = '⧉ Копировать'; }, 2000);
+}
+
+function twGetCurrentPrompt() {
+  const editEl = document.getElementById('twPromptEdit');
+  const promptEl = document.getElementById('twPromptText');
+  return editEl.style.display !== 'none' ? editEl.value : promptEl.textContent;
+}
+
+async function twGenerate() {
+  if (twGenerating || !activeTrend) return;
+  const step = activeTrend.steps[activeTrendStep];
+  const prompt = twGetCurrentPrompt();
+  const genBtn = document.getElementById('twGenBtn');
+  genBtn.disabled = true;
+  twGenerating = true;
+  document.getElementById('twGenBtnTxt').textContent = '⏳ Генерация...';
+
+  try {
+    if (step.tool === 'text') {
+      await twGenerateText(prompt, step);
+    } else if (step.tool === 'image') {
+      await twGenerateImage(prompt);
+    } else if (step.tool === 'video') {
+      await twGenerateVideo(prompt, step);
+    } else if (step.tool === 'voice') {
+      twShowVoiceResult(prompt);
+    }
+  } catch(e) {
+    twShowError(e.message);
+  }
+
+  twGenerating = false;
+  genBtn.disabled = false;
+  const labels = { text: 'Написать текст', image: 'Создать изображение', video: 'Сгенерировать видео', voice: 'Озвучить' };
+  document.getElementById('twGenBtnTxt').textContent = labels[step.tool] || 'Сгенерировать';
+}
+
+async function twGenerateText(prompt, step) {
+  const resEl = document.getElementById('twResult');
+  resEl.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.4);font-size:13px;">⏳ Пишу текст...</div>';
+
+  const resp = await api('POST', '/api/ai/chat', {
+    model: step.model || 'claude-sonnet-4-20250514',
+    provider: step.provider || 'claude',
+    system: 'Ты помощник для создания контента. Отвечай кратко и по делу.',
+    prompt: prompt,
+  });
+
+  const text = resp.ok ? (resp.data?.text || '') : (resp.data?.error || 'Ошибка');
+  twResults[activeTrendStep] = { type: 'text', content: text };
+  twShowResult(activeTrendStep, twResults[activeTrendStep]);
+}
+
+async function twGenerateImage(prompt) {
+  const resEl = document.getElementById('twResult');
+  resEl.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.4);font-size:13px;">⏳ Рисую изображение...</div>';
+
+  const encodedPrompt = encodeURIComponent(prompt);
+  const imgUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1080&height=1080&nologo=true&seed=' + Math.floor(Math.random()*99999);
+
+  await new Promise(function(resolve, reject) {
+    const img = new Image();
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = imgUrl;
+  });
+
+  twResults[activeTrendStep] = { type: 'image', url: imgUrl };
+  twShowResult(activeTrendStep, twResults[activeTrendStep]);
+}
+
+async function twGenerateVideo(prompt, step) {
+  const resEl = document.getElementById('twResult');
+  resEl.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.4);font-size:13px;">⏳ Генерирую видео (~2 мин)...</div>';
+
+  const genRes = await api('POST', '/api/ai/generate-video', {
+    prompt: prompt,
+    model: step.model || 'kling-video/v1.6/standard/text-to-video',
+    duration: '5', ratio: '9:16',
+  });
+
+  if (!genRes.ok) throw new Error(genRes.data?.error || 'Ошибка генерации');
+
+  const genId = genRes.data.generation_id;
+  twResults[activeTrendStep] = { type: 'video', status: 'pending', genId };
+  resEl.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.4);font-size:13px;">⏳ Рендеринг видео...<br><small>Обычно 1-3 минуты</small></div>';
+
+  // Poll
+  const maxAttempts = 30;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(function(r){ setTimeout(r, 6000); });
+    const st = await api('GET', '/api/ai/video-status/' + genId);
+    if (st.ok && st.data.video_url) {
+      twResults[activeTrendStep] = { type: 'video', url: st.data.video_url };
+      twShowResult(activeTrendStep, twResults[activeTrendStep]);
+      return;
+    }
+    if (st.ok && st.data.status === 'failed') throw new Error('Генерация не удалась');
+  }
+  throw new Error('Таймаут генерации');
+}
+
+function twShowVoiceResult(text) {
+  twResults[activeTrendStep] = { type: 'voice', content: text };
+  twShowResult(activeTrendStep, twResults[activeTrendStep]);
+}
+
+function twShowResult(idx, result) {
+  const resEl = document.getElementById('twResult');
+  const nextBtn = document.getElementById('twNextBtn');
+  const total = activeTrend.steps.length;
+
+  let html = '';
+  if (result.type === 'text') {
+    html = '<div class="tw-text-result">' + result.content.replace(/</g,'&lt;') + '</div>' +
+      '<div style="display:flex;gap:6px;">' +
+        '<button class="tw-copy-btn" onclick="twCopyResult()">⧉ Копировать</button>' +
+      '</div>';
+  } else if (result.type === 'image') {
+    html = '<div class="tw-img-result"><img src="' + result.url + '" alt="generated"></div>';
+  } else if (result.type === 'video') {
+    html = '<div class="tw-video-result"><video src="' + result.url + '" controls playsinline muted loop style="width:100%;height:100%;object-fit:cover;"></video></div>' +
+      '<div style="display:flex;gap:6px;">' +
+        '<button class="tw-copy-btn" onclick="twPublishVideo()">📤 Опубликовать</button>' +
+      '</div>';
+  } else if (result.type === 'voice') {
+    html = '<div class="tw-text-result">' + result.content.replace(/</g,'&lt;') + '</div>' +
+      '<div style="padding:12px;background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:12px;font-size:12px;color:rgba(255,255,255,.4);text-align:center;">🎙 Скопируй текст и озвучь через ElevenLabs</div>';
+  }
+
+  resEl.innerHTML = html;
+  // Show next button
+  nextBtn.style.display = (idx < total-1) ? 'flex' : 'none';
+  // Update steps
+  twRenderSteps();
+}
+
+function twCopyResult() {
+  const result = twResults[activeTrendStep];
+  if (result && result.content && navigator.clipboard) {
+    navigator.clipboard.writeText(result.content);
+    showFeedHint('✓ Скопировано');
+  }
+}
+
+function twPublishVideo() {
+  const result = twResults[activeTrendStep];
+  if (!result || !result.url) return;
+  // Navigate to upload with pre-filled video URL
+  showFeedHint('📤 Используй кнопку публикации в генераторе');
+}
+
+function twNextStep() {
+  if (!activeTrend) return;
+  const next = activeTrendStep + 1;
+  if (next < activeTrend.steps.length) {
+    twGoStep(next);
+  }
+}
+
+function twShowError(msg) {
+  document.getElementById('twResult').innerHTML =
+    '<div style="padding:20px;text-align:center;">' +
+      '<div style="font-size:28px;margin-bottom:8px;">⚠️</div>' +
+      '<div style="font-size:13px;color:rgba(255,255,255,.5);">' + msg + '</div>' +
+    '</div>';
+}
+
 
 function renderToolCards(gridId, tools, disabled) {
   const g = document.getElementById(gridId);
