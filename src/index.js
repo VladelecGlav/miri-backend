@@ -34,7 +34,8 @@ app.use((err, req, res, next) => {
   res.status(err.status||500).json({ error: err.message||'Ошибка сервера' });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT) || 3000;
+console.log('Starting on PORT:', PORT);
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🟡 Miri API → http://0.0.0.0:${PORT}`);
   console.log('  База данных: SQLite (miri.db)');
