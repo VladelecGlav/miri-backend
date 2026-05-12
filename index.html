@@ -1712,18 +1712,28 @@ function playSlideVideo(idx) {
     slide.insertBefore(vid, slide.firstChild);
   }
 
-  // Change source and play
-  if (vid.src !== url) {
-    vid.src = url;
+  // Change source only if different
+  const fullUrl = url.startsWith('http') ? url : (window.location.origin + url);
+  if (vid.src !== fullUrl) {
+    vid.src = fullUrl;
     vid.load();
   }
   vid.muted = false;
   updateSoundIcon();
   preloadNextVideo(idx);
-  vid.play().catch(() => {
-    vid.muted = true;
-    vid.play().catch(() => {});
-  });
+
+  const tryPlay = () => {
+    vid.play().catch(() => {
+      vid.muted = true;
+      vid.play().catch(() => {});
+    });
+  };
+
+  if (vid.readyState >= 3) {
+    tryPlay();
+  } else {
+    vid.oncanplay = () => { vid.oncanplay = null; tryPlay(); };
+  }
 }
 
 function fAnimProg(idx){
@@ -3419,9 +3429,9 @@ function openVideoFromProfile(videoId) {
 
   // Build feed from profile videos in order, starting from tapped one
   const tapIdx = myVids.findIndex(v => v.id === videoId);
-  const ordered = tapIdx > 0
-    ? [...myVids.slice(tapIdx), ...myVids.slice(0, tapIdx)]
-    : myVids;
+  const idx = tapIdx >= 0 ? tapIdx : 0;
+  // Always reorder so tapped video is first
+  const ordered = [...myVids.slice(idx), ...myVids.slice(0, idx)];
 
   // Convert to feed format
   serverVideos = ordered.map(v => ({
@@ -3439,10 +3449,11 @@ function openVideoFromProfile(videoId) {
   }));
 
   navTo('feed');
-  setTimeout(() => {
+  // Rebuild feed with new serverVideos then go to slide 0
+  requestAnimationFrame(() => {
     buildFeed();
-    setTimeout(() => fGoTo(0, false), 100);
-  }, 100);
+    requestAnimationFrame(() => fGoTo(0, false));
+  });
 }
 
 let editModeOn = false;
