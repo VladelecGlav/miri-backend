@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import { migrate } from './models/migrate.js';
@@ -13,14 +12,7 @@ import aiRouter     from './routes/ai.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Создаём папку uploads если не существует (Railway ephemeral filesystem)
-const uploadsDir = path.join(__dirname, '../uploads/videos');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('✅ Created uploads/videos directory');
-}
-
-migrate();
+await migrate();
 
 const app = express();
 app.use(cors({ origin: '*' }));

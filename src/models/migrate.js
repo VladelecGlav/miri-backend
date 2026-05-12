@@ -1,17 +1,32 @@
-import { DatabaseSync } from 'node:sqlite';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import pg from 'pg';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '../../miri.db');
+const { Pool } = pg;
 
-export const db = new DatabaseSync(DB_PATH);
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
-export function migrate() {
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
+// Хелпер — выполнить запрос и вернуть первую строку
+export const dbGet = async (sql, params = []) => {
+  const r = await pool.query(sql, params);
+  return r.rows[0] || null;
+};
 
+// Хелпер — выполнить запрос и вернуть все строки
+export const dbAll = async (sql, params = []) => {
+  const r = await pool.query(sql, params);
+  return r.rows;
+};
+
+// Хелпер — выполнить запрос (INSERT/UPDATE/DELETE)
+export const dbRun = async (sql, params = []) => {
+  const r = await pool.query(sql, params);
+  return r;
+};
+
+export async function migrate() {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id          TEXT PRIMARY KEY,
       name        TEXT NOT NULL,
@@ -21,8 +36,8 @@ export function migrate() {
       avatar_url  TEXT,
       bio         TEXT,
       role        TEXT NOT NULL DEFAULT 'user',
-      created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS videos (
@@ -33,24 +48,24 @@ export function migrate() {
       file_path      TEXT NOT NULL,
       thumbnail_url  TEXT,
       duration       REAL DEFAULT 0,
-      file_size      INTEGER DEFAULT 0,
+      file_size      BIGINT DEFAULT 0,
       tags           TEXT DEFAULT '[]',
       is_public      INTEGER NOT NULL DEFAULT 1,
       allow_comments INTEGER NOT NULL DEFAULT 1,
       has_ai_badge   INTEGER NOT NULL DEFAULT 1,
       status         TEXT NOT NULL DEFAULT 'published',
-      views          INTEGER NOT NULL DEFAULT 0,
+      views          BIGINT NOT NULL DEFAULT 0,
       likes_count    INTEGER NOT NULL DEFAULT 0,
       comments_count INTEGER NOT NULL DEFAULT 0,
-      created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS likes (
       id         TEXT PRIMARY KEY,
       user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       video_id   TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE(user_id, video_id)
     );
 
@@ -59,14 +74,14 @@ export function migrate() {
       user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       video_id   TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
       text       TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS follows (
       id           TEXT PRIMARY KEY,
       follower_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       following_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE(follower_id, following_id)
     );
 
@@ -74,25 +89,14 @@ export function migrate() {
       id         TEXT PRIMARY KEY,
       video_id   TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
       user_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE TABLE IF NOT EXISTS notifications (
-      id         TEXT PRIMARY KEY,
-      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      type       TEXT NOT NULL,
-      title      TEXT NOT NULL,
-      body       TEXT,
-      is_read    INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_videos_user    ON videos(user_id);
-    CREATE INDEX IF NOT EXISTS idx_videos_status  ON videos(status);
-    CREATE INDEX IF NOT EXISTS idx_likes_video    ON likes(video_id);
+    CREATE INDEX IF NOT EXISTS idx_videos_user       ON videos(user_id);
+    CREATE INDEX IF NOT EXISTS idx_videos_status     ON videos(status);
+    CREATE INDEX IF NOT EXISTS idx_likes_video       ON likes(video_id);
     CREATE INDEX IF NOT EXISTS idx_follows_follower  ON follows(follower_id);
     CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
   `);
-
-  console.log('✅ SQLite DB ready →', DB_PATH);
+  console.log('✅ PostgreSQL DB ready');
 }
