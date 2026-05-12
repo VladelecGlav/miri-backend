@@ -12,7 +12,7 @@ import aiRouter     from './routes/ai.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-migrate();
+await migrate();
 
 const app = express();
 app.use(cors({ origin: '*' }));

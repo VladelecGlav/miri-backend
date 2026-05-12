@@ -13,7 +13,6 @@ function makeHandle(name) {
   return name.toLowerCase().replace(/[^a-z0-9]/g,'_').slice(0,20) + '_' + Math.random().toString(36).slice(2,6);
 }
 
-// POST /api/auth/register
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'Заполни все поля' });
@@ -21,22 +20,17 @@ router.post('/register', async (req, res) => {
   try {
     const existing = await dbGet('SELECT id FROM users WHERE email=$1', [email.toLowerCase()]);
     if (existing) return res.status(409).json({ error: 'Email уже используется' });
-    const hash   = await bcrypt.hash(password, 10);
-    const id     = uuid();
+    const hash = await bcrypt.hash(password, 10);
+    const id = uuid();
     const handle = makeHandle(name);
-    await dbRun(
-      'INSERT INTO users (id,name,email,password,handle) VALUES ($1,$2,$3,$4,$5)',
-      [id, name, email.toLowerCase(), hash, handle]
-    );
-    const user  = await dbGet('SELECT id,name,email,handle,avatar_url,bio,role,created_at FROM users WHERE id=$1', [id]);
+    await dbRun('INSERT INTO users (id,name,email,password,handle) VALUES ($1,$2,$3,$4,$5)',
+      [id, name, email.toLowerCase(), hash, handle]);
+    const user = await dbGet('SELECT id,name,email,handle,avatar_url,bio,role,created_at FROM users WHERE id=$1', [id]);
     const token = jwt.sign({ id }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     res.status(201).json({ token, user });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/auth/login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Заполни все поля' });
@@ -48,39 +42,31 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     const { password: _, ...safe } = user;
     res.json({ token, user: safe });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/auth/me
 router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await dbGet('SELECT id,name,email,handle,avatar_url,bio,role,created_at FROM users WHERE id=$1', [req.user.id]);
-    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+    if (!user) return res.status(404).json({ error: 'Не найден' });
     res.json({ user });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// PATCH /api/auth/me
 router.patch('/me', authenticate, async (req, res) => {
   const { name, handle, bio, avatar_color } = req.body;
   try {
     if (handle) {
-      const existing = await dbGet('SELECT id FROM users WHERE handle=$1 AND id!=$2', [handle, req.user.id]);
-      if (existing) return res.status(409).json({ error: 'Хэндл уже занят' });
+      const ex = await dbGet('SELECT id FROM users WHERE handle=$1 AND id!=$2', [handle, req.user.id]);
+      if (ex) return res.status(409).json({ error: 'Хэндл уже занят' });
     }
     await dbRun(
-      'UPDATE users SET name=COALESCE($1,name), handle=COALESCE($2,handle), bio=COALESCE($3,bio), avatar_url=COALESCE($4,avatar_url), updated_at=NOW() WHERE id=$5',
+      'UPDATE users SET name=COALESCE($1,name),handle=COALESCE($2,handle),bio=COALESCE($3,bio),avatar_url=COALESCE($4,avatar_url),updated_at=NOW() WHERE id=$5',
       [name||null, handle||null, bio||null, avatar_color||null, req.user.id]
     );
     const user = await dbGet('SELECT id,name,email,handle,avatar_url,bio,role,created_at FROM users WHERE id=$1', [req.user.id]);
     res.json({ user });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 export default router;
