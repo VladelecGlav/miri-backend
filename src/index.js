@@ -9,6 +9,7 @@ import authRouter   from './routes/auth.js';
 import videosRouter from './routes/videos.js';
 import usersRouter  from './routes/users.js';
 import aiRouter     from './routes/ai.js';
+import trendsRouter  from './routes/trends.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +27,7 @@ app.use('/api/auth',   authRouter);
 app.use('/api/videos', videosRouter);
 app.use('/api/users',  usersRouter);
 app.use('/api/ai',     aiRouter);
+app.use('/api/trends', trendsRouter);
 
 app.get('/health', (_, res) => res.json({ status:'ok', app:'Miri API', db:'SQLite', version:'2.0.0', time:new Date().toISOString() }));
 

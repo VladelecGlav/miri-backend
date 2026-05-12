@@ -2251,7 +2251,9 @@ function renderCreateContent(tabId) {
   renderToolCards('soonToolsGrid', soon, true);
 }
 
-function renderTrends() {
+let serverTrends = []; // тренды с сервера
+
+async function renderTrends() {
   const live = document.getElementById('liveToolsGrid');
   const soon = document.getElementById('soonToolsGrid');
   const soonHeader = document.getElementById('soonHeader');
@@ -2260,35 +2262,70 @@ function renderTrends() {
   if (!live) return;
 
   live.style.gridTemplateColumns = '1fr';
-  live.innerHTML = '';
 
-  TRENDS.forEach(function(t) {
-    const card = document.createElement('div');
-    card.className = 'trend-card';
-    card.innerHTML =
-      '<div class="trend-preview" style="background:' + t.preview_color + '">' +
-        '<span style="font-size:36px;">' + t.emoji + '</span>' +
-        '<div class="trend-views">👁 ' + t.views + '</div>' +
-        '<div class="trend-difficulty ' + (t.difficulty === 'Легко' ? 'easy' : 'medium') + '">' + t.difficulty + '</div>' +
-      '</div>' +
-      '<div class="trend-body">' +
-        '<div class="trend-cat">' + t.category + '</div>' +
-        '<div class="trend-title">' + t.title + '</div>' +
-        '<div class="trend-steps-preview">' + t.steps.map(function(s){ return '<span class="trend-step-dot">' + s.icon + '</span>'; }).join('') + '</div>' +
-      '</div>';
-    card.onclick = (function(id){ return function(){ openTrendWizard(id); }; })(t.id);
-    live.appendChild(card);
-  });
+  // Кнопка создания тренда
+  live.innerHTML =
+    '<div style="margin-bottom:12px;">' +
+      '<button onclick="openCreateTrend()" style="width:100%;height:46px;background:rgba(242,193,46,.08);border:.5px solid rgba(242,193,46,.25);border-radius:13px;font-size:13px;font-weight:600;color:rgba(242,193,46,.8);cursor:pointer;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+        '<span style="font-size:18px;">+</span> Создать тренд' +
+      '</button>' +
+    '</div>' +
+    '<div id="trendsSection-official" style="margin-bottom:6px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,193,46,.5);">⭐ От команды Miri</div>' +
+    '<div id="trendsListOfficial"></div>' +
+    '<div id="trendsSection-user" style="margin:12px 0 6px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.25);">👥 От пользователей</div>' +
+    '<div id="trendsListUser"></div>';
+
+  // Загружаем с сервера
+  try {
+    const res = await api('GET', '/api/trends');
+    if (res.ok) serverTrends = res.data.trends || [];
+  } catch(e) {}
+
+  // Объединяем встроенные + серверные
+  const official = [...TRENDS, ...serverTrends.filter(function(t){ return t.is_official; })];
+  const userMade = serverTrends.filter(function(t){ return !t.is_official; });
+
+  renderTrendList('trendsListOfficial', official);
+  renderTrendList('trendsListUser', userMade);
 
   live.style.gridTemplateColumns = '';
+}
+
+function renderTrendList(containerId, trends) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (trends.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,.2);padding:8px 4px;">Пока пусто</div>';
+    return;
+  }
+  el.innerHTML = '';
+  trends.forEach(function(t) {
+    const card = document.createElement('div');
+    card.className = 'trend-card';
+    const steps = t.steps || [];
+    const isServer = !!t.user_id; // серверный тренд
+    card.innerHTML =
+      '<div class="trend-preview" style="background:' + (t.preview_color || 'linear-gradient(135deg,#1a1a2e,#4338ca)') + '">' +
+        '<span style="font-size:36px;">' + (t.emoji || '✨') + '</span>' +
+        '<div class="trend-views">👁 ' + (t.views || 0) + '</div>' +
+        '<div class="trend-difficulty ' + (t.difficulty === 'Легко' ? 'easy' : 'medium') + '">' + (t.difficulty || 'Легко') + '</div>' +
+      '</div>' +
+      '<div class="trend-body">' +
+        '<div class="trend-cat">' + (t.category || '') + (t.author_handle ? ' · @' + t.author_handle : '') + '</div>' +
+        '<div class="trend-title">' + t.title + '</div>' +
+        '<div class="trend-steps-preview">' + steps.map(function(s){ return '<span class="trend-step-dot">' + (s.icon || '✦') + '</span>'; }).join('') + '</div>' +
+      '</div>';
+    card.onclick = (function(trend){ return function(){ openTrendWizard(trend.id, trend); }; })(t);
+    el.appendChild(card);
+  });
 }
 
 // ── TREND WIZARD ─────────────────────────────────────────
 const twResults = {}; // сохраняем результаты каждого шага
 let twGenerating = false;
 
-function openTrendWizard(id) {
-  const t = TRENDS.find(function(x){ return x.id === id; });
+function openTrendWizard(id, trendObj) {
+  const t = trendObj || TRENDS.find(function(x){ return x.id === id; }) || serverTrends.find(function(x){ return x.id === id; });
   if (!t) return;
   activeTrend = t;
   activeTrendStep = 0;
@@ -2301,6 +2338,135 @@ function openTrendWizard(id) {
   twLoadStep(0);
   // Открываем
   document.getElementById('trendWizard').classList.add('open');
+}
+
+// ── CREATE TREND ─────────────────────────────────────────
+let ctSteps = []; // шаги нового тренда
+
+function openCreateTrend() {
+  ctSteps = [
+    { id: 1, name: 'Текст', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude', prompt: '' },
+  ];
+  renderCreateTrendModal();
+}
+
+function renderCreateTrendModal() {
+  const existing = document.getElementById('ctModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'ctModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:flex;align-items:flex-end;';
+
+  const TOOL_OPTIONS = [
+    { value: 'text',  label: '✍️ Текст', icon: '✍️' },
+    { value: 'image', label: '🖼 Изображение', icon: '🖼' },
+    { value: 'video', label: '🎬 Видео', icon: '🎬' },
+    { value: 'voice', label: '🎙 Озвучка', icon: '🎙' },
+  ];
+
+  const stepsHtml = ctSteps.map(function(s, i) {
+    return '<div style="background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;margin-bottom:8px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+        '<span style="font-size:16px;">' + s.icon + '</span>' +
+        '<span style="font-size:13px;font-weight:600;color:#fff;">Шаг ' + (i+1) + '</span>' +
+        '<select id="ctTool_' + i + '" onchange="ctUpdateStepTool(' + i + ')" style="margin-left:auto;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:8px;padding:4px 8px;color:#fff;font-size:12px;">' +
+          TOOL_OPTIONS.map(function(o){ return '<option value="' + o.value + '"' + (s.tool === o.value ? ' selected' : '') + '>' + o.label + '</option>'; }).join('') +
+        '</select>' +
+        (ctSteps.length > 1 ? '<button onclick="ctRemoveStep(' + i + ')" style="background:rgba(239,68,68,.2);border:none;border-radius:6px;padding:4px 8px;color:#ef4444;font-size:11px;cursor:pointer;">✕</button>' : '') +
+      '</div>' +
+      '<textarea id="ctPrompt_' + i + '" placeholder="Промпт для этого шага..." style="width:100%;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:8px;padding:8px;color:#fff;font-size:12px;font-family:-apple-system,sans-serif;resize:vertical;min-height:60px;">' + s.prompt + '</textarea>' +
+    '</div>';
+  }).join('');
+
+  modal.innerHTML =
+    '<div style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding:20px 16px max(env(safe-area-inset-bottom,0)+16px,20px);">' +
+      '<div style="display:flex;align-items:center;margin-bottom:16px;">' +
+        '<div style="font-size:16px;font-weight:700;color:#fff;flex:1;">Создать тренд</div>' +
+        '<button onclick="document.getElementById('ctModal').remove()" style="background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;">Закрыть</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
+        '<input id="ctEmoji" value="✨" style="width:52px;text-align:center;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:20px;" placeholder="🎯">' +
+        '<input id="ctTitle" placeholder="Название тренда" style="flex:1;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:14px;font-family:-apple-system,sans-serif;">' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:14px;">' +
+        '<input id="ctCategory" placeholder="Категория" value="Другое" style="flex:1;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:13px;font-family:-apple-system,sans-serif;">' +
+        '<select id="ctDifficulty" style="background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px;color:#fff;font-size:13px;">' +
+          '<option value="Легко">Легко</option>' +
+          '<option value="Средне">Средне</option>' +
+          '<option value="Сложно">Сложно</option>' +
+        '</select>' +
+      '</div>' +
+      '<div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:8px;">Шаги</div>' +
+      '<div id="ctStepsList">' + stepsHtml + '</div>' +
+      '<button onclick="ctAddStep()" style="width:100%;height:40px;background:rgba(255,255,255,.04);border:.5px dashed rgba(255,255,255,.15);border-radius:10px;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer;margin-bottom:14px;">+ Добавить шаг</button>' +
+      '<button onclick="ctSaveTrend()" style="width:100%;height:50px;background:#F2C12E;border:none;border-radius:14px;font-size:15px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">Опубликовать тренд</button>' +
+    '</div>';
+
+  document.body.appendChild(modal);
+}
+
+function ctUpdateStepTool(i) {
+  ctSaveStepData();
+  const ICONS = { text:'✍️', image:'🖼', video:'🎬', voice:'🎙' };
+  const sel = document.getElementById('ctTool_' + i);
+  if (sel) { ctSteps[i].tool = sel.value; ctSteps[i].icon = ICONS[sel.value] || '✦'; }
+  renderCreateTrendModal();
+}
+
+function ctAddStep() {
+  ctSaveStepData();
+  const ICONS = { text:'✍️', image:'🖼', video:'🎬', voice:'🎙' };
+  ctSteps.push({ id: ctSteps.length + 1, name: 'Шаг', icon: '✍️', tool: 'text', model: 'claude-sonnet-4-20250514', provider: 'claude', prompt: '' });
+  renderCreateTrendModal();
+}
+
+function ctRemoveStep(i) {
+  ctSaveStepData();
+  ctSteps.splice(i, 1);
+  renderCreateTrendModal();
+}
+
+function ctSaveStepData() {
+  ctSteps.forEach(function(s, i) {
+    const pr = document.getElementById('ctPrompt_' + i);
+    const tl = document.getElementById('ctTool_' + i);
+    if (pr) s.prompt = pr.value;
+    if (tl) s.tool = tl.value;
+  });
+}
+
+async function ctSaveTrend() {
+  ctSaveStepData();
+  const title = document.getElementById('ctTitle')?.value.trim();
+  const emoji = document.getElementById('ctEmoji')?.value.trim() || '✨';
+  const category = document.getElementById('ctCategory')?.value.trim() || 'Другое';
+  const difficulty = document.getElementById('ctDifficulty')?.value || 'Легко';
+
+  if (!title) { showFeedHint('Введи название'); return; }
+  if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); return; }
+
+  const steps = ctSteps.map(function(s, i) {
+    const MODELS = { text:'claude-sonnet-4-20250514', image:'pollinations', video:'kling-video/v1.6/standard/text-to-video', voice:'elevenlabs' };
+    const NAMES = { text:'Текст', image:'Обложка', video:'Видео', voice:'Озвучка' };
+    return { id: i+1, name: NAMES[s.tool]||s.name, icon: s.icon, tool: s.tool, model: MODELS[s.tool], provider: s.tool === 'text' ? 'claude' : null, prompt: s.prompt };
+  });
+
+  const btn = document.querySelector('#ctModal button:last-child');
+  if (btn) { btn.textContent = '⏳ Сохраняем...'; btn.disabled = true; }
+
+  const res = await api('POST', '/api/trends', { title, emoji, category, difficulty, steps,
+    preview_color: 'linear-gradient(135deg,#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0') + ',#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0') + ')'
+  });
+
+  if (res.ok) {
+    document.getElementById('ctModal')?.remove();
+    showFeedHint('✅ Тренд опубликован!');
+    renderTrends(); // обновляем список
+  } else {
+    showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+    if (btn) { btn.textContent = 'Опубликовать тренд'; btn.disabled = false; }
+  }
 }
 
 function closeTrendWizard() {

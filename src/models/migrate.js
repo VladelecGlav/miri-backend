@@ -68,6 +68,23 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_likes_video ON likes(video_id);
     CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
     CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+
+    CREATE TABLE IF NOT EXISTS trends (
+      id          TEXT PRIMARY KEY,
+      user_id     TEXT REFERENCES users(id) ON DELETE CASCADE,
+      title       TEXT NOT NULL,
+      emoji       TEXT NOT NULL DEFAULT '✨',
+      category    TEXT NOT NULL DEFAULT 'Другое',
+      difficulty  TEXT NOT NULL DEFAULT 'Легко',
+      preview_color TEXT DEFAULT 'linear-gradient(135deg,#1a1a2e,#4338ca)',
+      steps       TEXT NOT NULL DEFAULT '[]',
+      is_official INTEGER NOT NULL DEFAULT 0,
+      views       INTEGER NOT NULL DEFAULT 0,
+      likes_count INTEGER NOT NULL DEFAULT 0,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_trends_official ON trends(is_official);
+    CREATE INDEX IF NOT EXISTS idx_trends_user ON trends(user_id);
   `);
   console.log('✅ Neon PostgreSQL ready');
 }
