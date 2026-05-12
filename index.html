@@ -1519,7 +1519,7 @@ function buildFeed(){
         isHolding = true;
         if (sharedVideo && !sharedVideo.paused) {
           sharedVideo.pause();
-          showFeedHint('⏸');
+          // пауза без иконки
         }
       }, 350);
     }, {passive: true});
@@ -1550,7 +1550,7 @@ function buildFeed(){
       // Resume video if was paused by hold
       if (isHolding && sharedVideo && sharedVideo.paused) {
         sharedVideo.play().catch(()=>{});
-        showFeedHint('▶');
+        // возобновление без иконки
         isHolding = false;
         return;
       }
