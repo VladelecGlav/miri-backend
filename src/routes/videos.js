@@ -15,33 +15,57 @@ const YC_ENDPOINT   = 'https://storage.yandexcloud.net';
 const YC_REGION     = 'ru-central1';
 
 async function uploadToYandex(buffer, filename, mimetype) {
+  const crypto = (await import('crypto')).default;
   const key  = `videos/${filename}`;
   const host = `${YC_BUCKET}.storage.yandexcloud.net`;
   const now  = new Date();
-  const date = now.toISOString().slice(0,10).replace(/-/g,'');
-  const time = now.toISOString().replace(/[-:]/g,'').slice(0,15) + 'Z';
-  const crypto = await import('crypto');
-  const sign = (key, msg) => crypto.default.createHmac('sha256', key).update(msg).digest();
-  const hex  = buf => Buffer.from(buf).toString('hex');
-  const sha256hex = data => crypto.default.createHash('sha256').update(data).digest('hex');
-  const payloadHash = sha256hex(buffer);
-  const hdrs = { 'content-type': mimetype, 'host': host, 'x-amz-content-sha256': payloadHash, 'x-amz-date': time };
+  const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');         // 20260512
+  const timeStr = now.toISOString().replace(/[:\-]/g,'').slice(0,15)+'Z'; // 20260512T113551Z
+
+  const hmac    = (key, data) => crypto.createHmac('sha256', key).update(data).digest();
+  const sha256  = data => crypto.createHash('sha256').update(data).digest('hex');
+
+  const payloadHash = sha256(buffer);
+
+  // Заголовки в алфавитном порядке
+  const canonicalHeaders =
+    `content-type:${mimetype}\n` +
+    `host:${host}\n` +
+    `x-amz-content-sha256:${payloadHash}\n` +
+    `x-amz-date:${timeStr}\n`;
   const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
-  const canonicalHeaders = Object.entries(hdrs).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}:${v}`).join('\n')+'\n';
-  const canonicalRequest = ['PUT',`/${key}`,'',canonicalHeaders,signedHeaders,payloadHash].join('\n');
-  const credScope = `${date}/${YC_REGION}/s3/aws4_request`;
-  const strToSign = ['AWS4-HMAC-SHA256',time,credScope,sha256hex(canonicalRequest)].join('\n');
-  const signingKey = sign(sign(sign(sign(`AWS4${YC_SECRET_KEY}`,date),YC_REGION),'s3'),'aws4_request');
-  const signature  = hex(sign(signingKey,strToSign));
+
+  const canonicalRequest = [
+    'PUT',
+    `/${key}`,
+    '',
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join('\n');
+
+  const credScope  = `${dateStr}/${YC_REGION}/s3/aws4_request`;
+  const strToSign  = ['AWS4-HMAC-SHA256', timeStr, credScope, sha256(canonicalRequest)].join('\n');
+  const signingKey = hmac(hmac(hmac(hmac(`AWS4${YC_SECRET_KEY}`, dateStr), YC_REGION), 's3'), 'aws4_request');
+  const signature  = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
+
   const authHeader = `AWS4-HMAC-SHA256 Credential=${YC_ACCESS_KEY}/${credScope},SignedHeaders=${signedHeaders},Signature=${signature}`;
-  const url = `${YC_ENDPOINT}/${YC_BUCKET}/${key}`;
+  const url = `https://${host}/${key}`;
+
   const resp = await fetch(url, {
     method: 'PUT',
-    headers: { ...hdrs, 'Authorization': authHeader, 'Content-Length': buffer.length },
+    headers: {
+      'Authorization':        authHeader,
+      'Content-Type':         mimetype,
+      'Content-Length':       String(buffer.length),
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date':           timeStr,
+    },
     body: buffer,
   });
+
   if (!resp.ok) throw new Error(`Yandex S3 ${resp.status}: ${await resp.text()}`);
-  return `${YC_ENDPOINT}/${YC_BUCKET}/${key}`;
+  return `https://${host}/${key}`;
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500*1024*1024 } });
