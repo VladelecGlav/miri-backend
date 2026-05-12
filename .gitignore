@@ -1,0 +1,7 @@
+node_modules/ 
+.env 
+miri.db 
+miri.db-shm 
+miri.db-wal 
+uploads/ 
+mnt/ 
