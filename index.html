@@ -4587,6 +4587,7 @@ function navTo(page){
   // Pause ALL videos when leaving feed
   if (page !== 'feed') {
     try {
+      if (sharedVideo) { sharedVideo.pause(); sharedVideo.muted = true; }
       const allVids = document.querySelectorAll('#reelTrack video');
       allVids.forEach(v => { v.pause(); v.currentTime = 0; });
     } catch(e) {}
