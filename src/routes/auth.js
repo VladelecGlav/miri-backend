@@ -8,11 +8,19 @@ import { authenticate } from '../middleware/auth.js';
 const router = Router();
 const JWT_SECRET  = process.env.JWT_SECRET  || 'miri-secret';
 const JWT_EXPIRES = process.env.JWT_EXPIRES_IN || '30d';
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const BASE_URL = process.env.BASE_URL || 'https://miri-backend-production.up.railway.app';
 
 function makeHandle(name) {
   return name.toLowerCase().replace(/[^a-z0-9]/g,'_').slice(0,20) + '_' + Math.random().toString(36).slice(2,6);
 }
 
+function makeToken(id) {
+  return jwt.sign({ id }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+}
+
+// ── Обычная регистрация ──────────────────────────────────
 router.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'Заполни все поля' });
@@ -22,29 +30,94 @@ router.post('/register', async (req, res) => {
     if (existing) return res.status(409).json({ error: 'Email уже используется' });
     const hash = await bcrypt.hash(password, 10);
     const id = uuid();
-    const handle = makeHandle(name);
     await dbRun('INSERT INTO users (id,name,email,password,handle) VALUES ($1,$2,$3,$4,$5)',
-      [id, name, email.toLowerCase(), hash, handle]);
+      [id, name, email.toLowerCase(), hash, makeHandle(name)]);
     const user = await dbGet('SELECT id,name,email,handle,avatar_url,bio,role,created_at FROM users WHERE id=$1', [id]);
-    const token = jwt.sign({ id }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
-    res.status(201).json({ token, user });
+    res.status(201).json({ token: makeToken(id), user });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Вход ────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Заполни все поля' });
   try {
     const user = await dbGet('SELECT * FROM users WHERE email=$1', [email.toLowerCase()]);
     if (!user) return res.status(401).json({ error: 'Неверный email или пароль' });
+    if (!user.password) return res.status(401).json({ error: 'Этот аккаунт создан через Google. Войди через Google.' });
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ error: 'Неверный email или пароль' });
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
     const { password: _, ...safe } = user;
-    res.json({ token, user: safe });
+    res.json({ token: makeToken(user.id), user: safe });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Google OAuth — шаг 1: редирект на Google ────────────
+router.get('/google', (req, res) => {
+  const params = new URLSearchParams({
+    client_id:     GOOGLE_CLIENT_ID,
+    redirect_uri:  `${BASE_URL}/api/auth/google/callback`,
+    response_type: 'code',
+    scope:         'openid email profile',
+    access_type:   'offline',
+    prompt:        'select_account',
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// ── Google OAuth — шаг 2: callback ──────────────────────
+router.get('/google/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error) return res.redirect(`/?error=google_cancelled`);
+  if (!code)  return res.redirect(`/?error=no_code`);
+
+  try {
+    // Обмен code на токен
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id:     GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri:  `${BASE_URL}/api/auth/google/callback`,
+        grant_type:    'authorization_code',
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.redirect(`/?error=token_failed`);
+
+    // Получаем данные пользователя
+    const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const profile = await profileRes.json();
+    if (!profile.email) return res.redirect(`/?error=no_email`);
+
+    // Находим или создаём пользователя
+    let user = await dbGet('SELECT * FROM users WHERE email=$1', [profile.email.toLowerCase()]);
+    if (!user) {
+      const id = uuid();
+      await dbRun(
+        'INSERT INTO users (id,name,email,password,handle,avatar_url) VALUES ($1,$2,$3,$4,$5,$6)',
+        [id, profile.name || profile.email.split('@')[0], profile.email.toLowerCase(),
+         '', makeHandle(profile.name || profile.email), profile.picture || null]
+      );
+      user = await dbGet('SELECT * FROM users WHERE id=$1', [id]);
+    } else if (!user.avatar_url && profile.picture) {
+      await dbRun('UPDATE users SET avatar_url=$1 WHERE id=$2', [profile.picture, user.id]);
+    }
+
+    const token = makeToken(user.id);
+    // Редирект обратно в приложение с токеном
+    res.redirect(`/index.html?token=${token}&name=${encodeURIComponent(user.name)}`);
+  } catch(e) {
+    console.error('Google OAuth error:', e.message);
+    res.redirect(`/?error=oauth_failed`);
+  }
+});
+
+// ── Получить профиль ────────────────────────────────────
 router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await dbGet('SELECT id,name,email,handle,avatar_url,bio,role,created_at FROM users WHERE id=$1', [req.user.id]);
@@ -53,6 +126,7 @@ router.get('/me', authenticate, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Обновить профиль ────────────────────────────────────
 router.patch('/me', authenticate, async (req, res) => {
   const { name, handle, bio, avatar_color } = req.body;
   try {
