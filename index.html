@@ -2421,6 +2421,27 @@ function renderCreateTrendModal() {
   // Steps list
   const stepsList = document.createElement('div');
   stepsList.id = 'ctStepsList';
+  var CT_MODELS = {
+    text: [
+      {value:'claude-sonnet-4-20250514', provider:'claude', label:'Claude Sonnet 4.6'},
+      {value:'gpt-4.1', provider:'chatgpt', label:'GPT-4.1'},
+      {value:'deepseek/deepseek-chat', provider:'deepseek', label:'DeepSeek V3'},
+      {value:'gemini-2.5-flash', provider:'gemini', label:'Gemini 2.5 Flash'},
+      {value:'grok-3', provider:'grok', label:'Grok 3'},
+    ],
+    image: [
+      {value:'pollinations', provider:'pollinations', label:'Pollinations (бесплатно)'},
+      {value:'flux-2-lora', provider:'aimlapi', label:'Flux 2 LoRA'},
+    ],
+    video: [
+      {value:'kling-video/v1.6/standard/text-to-video', provider:'kling', label:'Kling v1.6 Standard'},
+      {value:'kling-video/v1.6/pro/text-to-video', provider:'kling', label:'Kling v1.6 Pro'},
+      {value:'kling-video/v2.1/master/text-to-video', provider:'kling', label:'Kling v2.1 Master'},
+    ],
+    voice: [
+      {value:'elevenlabs', provider:'elevenlabs', label:'ElevenLabs'},
+    ],
+  };
   var TOOL_OPTIONS2 = [{value:'text',label:'✍️ Текст'},{value:'image',label:'🖼 Изображение'},{value:'video',label:'🎬 Видео'},{value:'voice',label:'🎙 Озвучка'}];
   ctSteps.forEach(function(s, i) {
     const stepDiv = document.createElement('div');
@@ -2434,6 +2455,15 @@ function renderCreateTrendModal() {
     TOOL_OPTIONS2.forEach(function(o){ const opt = document.createElement('option'); opt.value = o.value; opt.textContent = o.label; if(s.tool===o.value) opt.selected=true; sel.appendChild(opt); });
     sel.onchange = (function(idx){ return function(){ ctUpdateStepTool(idx); }; })(i);
     stepHdr.appendChild(sel);
+
+    // Model selector
+    const modelSel = document.createElement('select');
+    modelSel.id = 'ctModel_' + i;
+    modelSel.style.cssText = 'background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:8px;padding:4px 8px;color:rgba(255,255,255,.7);font-size:11px;max-width:130px;';
+    var models = CT_MODELS[s.tool] || CT_MODELS.text;
+    models.forEach(function(m){ var opt = document.createElement('option'); opt.value = m.value; opt.textContent = m.label; if(s.model===m.value) opt.selected=true; modelSel.appendChild(opt); });
+    stepHdr.appendChild(modelSel);
+
     if (ctSteps.length > 1) {
       const del = document.createElement('button');
       del.textContent = '✕'; del.style.cssText = 'background:rgba(239,68,68,.2);border:none;border-radius:6px;padding:4px 8px;color:#ef4444;font-size:11px;cursor:pointer;';
@@ -2476,7 +2506,11 @@ function ctUpdateStepTool(i) {
   ctSaveStepData();
   const ICONS = { text:'✍️', image:'🖼', video:'🎬', voice:'🎙' };
   const sel = document.getElementById('ctTool_' + i);
-  if (sel) { ctSteps[i].tool = sel.value; ctSteps[i].icon = ICONS[sel.value] || '✦'; }
+  if (sel) {
+    ctSteps[i].tool = sel.value;
+    ctSteps[i].icon = ICONS[sel.value] || '✦';
+    ctSteps[i].model = ''; // reset model when tool changes
+  }
   renderCreateTrendModal();
 }
 
@@ -2495,10 +2529,12 @@ function ctRemoveStep(i) {
 
 function ctSaveStepData() {
   ctSteps.forEach(function(s, i) {
-    const pr = document.getElementById('ctPrompt_' + i);
-    const tl = document.getElementById('ctTool_' + i);
+    var pr = document.getElementById('ctPrompt_' + i);
+    var tl = document.getElementById('ctTool_' + i);
+    var ml = document.getElementById('ctModel_' + i);
     if (pr) s.prompt = pr.value;
     if (tl) s.tool = tl.value;
+    if (ml) s.model = ml.value;
   });
 }
 
@@ -2512,10 +2548,14 @@ async function ctSaveTrend() {
   if (!title) { showFeedHint('Введи название'); return; }
   if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); return; }
 
+  var DEF_MODELS = { text:'claude-sonnet-4-20250514', image:'pollinations', video:'kling-video/v1.6/standard/text-to-video', voice:'elevenlabs' };
+  var DEF_PROVIDERS = { text:'claude', image:'pollinations', video:'kling', voice:'elevenlabs' };
+  var NAMES = { text:'Текст', image:'Обложка', video:'Видео', voice:'Озвучка' };
   const steps = ctSteps.map(function(s, i) {
-    const MODELS = { text:'claude-sonnet-4-20250514', image:'pollinations', video:'kling-video/v1.6/standard/text-to-video', voice:'elevenlabs' };
-    const NAMES = { text:'Текст', image:'Обложка', video:'Видео', voice:'Озвучка' };
-    return { id: i+1, name: NAMES[s.tool]||s.name, icon: s.icon, tool: s.tool, model: MODELS[s.tool], provider: s.tool === 'text' ? 'claude' : null, prompt: s.prompt };
+    return { id: i+1, name: NAMES[s.tool]||s.name, icon: s.icon, tool: s.tool,
+      model: s.model || DEF_MODELS[s.tool],
+      provider: DEF_PROVIDERS[s.tool] || 'claude',
+      prompt: s.prompt };
   });
 
   const btn = document.getElementById('ctSaveBtn');
