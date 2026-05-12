@@ -7,65 +7,29 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// ── Yandex Object Storage ────────────────────────────────
+// ── Yandex Object Storage (AWS SDK) ─────────────────────
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+
 const YC_BUCKET     = process.env.YC_BUCKET     || 'miri-videos';
 const YC_ACCESS_KEY = process.env.YC_ACCESS_KEY || '';
 const YC_SECRET_KEY = process.env.YC_SECRET_KEY || '';
-const YC_ENDPOINT   = 'https://storage.yandexcloud.net';
-const YC_REGION     = 'ru-central1';
+
+const s3 = new S3Client({
+  region: 'ru-central1',
+  endpoint: 'https://storage.yandexcloud.net',
+  credentials: { accessKeyId: YC_ACCESS_KEY, secretAccessKey: YC_SECRET_KEY },
+});
 
 async function uploadToYandex(buffer, filename, mimetype) {
-  const crypto = (await import('crypto')).default;
-  const key  = `videos/${filename}`;
-  const host = `${YC_BUCKET}.storage.yandexcloud.net`;
-  const now  = new Date();
-  const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');         // 20260512
-  const timeStr = now.toISOString().replace(/[:\-]/g,'').slice(0,15)+'Z'; // 20260512T113551Z
-
-  const hmac    = (key, data) => crypto.createHmac('sha256', key).update(data).digest();
-  const sha256  = data => crypto.createHash('sha256').update(data).digest('hex');
-
-  const payloadHash = sha256(buffer);
-
-  // Заголовки в алфавитном порядке
-  const canonicalHeaders =
-    `content-type:${mimetype}\n` +
-    `host:${host}\n` +
-    `x-amz-content-sha256:${payloadHash}\n` +
-    `x-amz-date:${timeStr}\n`;
-  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
-
-  const canonicalRequest = [
-    'PUT',
-    `/${key}`,
-    '',
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash,
-  ].join('\n');
-
-  const credScope  = `${dateStr}/${YC_REGION}/s3/aws4_request`;
-  const strToSign  = ['AWS4-HMAC-SHA256', timeStr, credScope, sha256(canonicalRequest)].join('\n');
-  const signingKey = hmac(hmac(hmac(hmac(`AWS4${YC_SECRET_KEY}`, dateStr), YC_REGION), 's3'), 'aws4_request');
-  const signature  = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
-
-  const authHeader = `AWS4-HMAC-SHA256 Credential=${YC_ACCESS_KEY}/${credScope},SignedHeaders=${signedHeaders},Signature=${signature}`;
-  const url = `https://${host}/${key}`;
-
-  const resp = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Authorization':        authHeader,
-      'Content-Type':         mimetype,
-      'Content-Length':       String(buffer.length),
-      'x-amz-content-sha256': payloadHash,
-      'x-amz-date':           timeStr,
-    },
-    body: buffer,
-  });
-
-  if (!resp.ok) throw new Error(`Yandex S3 ${resp.status}: ${await resp.text()}`);
-  return `https://${host}/${key}`;
+  const key = `videos/${filename}`;
+  await s3.send(new PutObjectCommand({
+    Bucket: YC_BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: mimetype,
+    ACL: 'public-read',
+  }));
+  return `https://storage.yandexcloud.net/${YC_BUCKET}/${key}`;
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500*1024*1024 } });
