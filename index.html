@@ -3455,6 +3455,7 @@ function openVideoFromProfile(videoId) {
     _serverVideo: v,
   }));
 
+  _skipFeedReload = true; // не перезагружать ленту
   navTo('feed');
   // Rebuild feed with new serverVideos then go to slide 0
   requestAnimationFrame(() => {
@@ -4580,6 +4581,8 @@ function logout() {
 }
 
 // ── NAV ──────────────────────────────────────────────────
+let _skipFeedReload = false; // флаг для открытия видео из профиля
+
 function navTo(page){
   // Pause ALL videos when leaving feed
   if (page !== 'feed') {
@@ -4596,8 +4599,13 @@ function navTo(page){
     document.querySelectorAll('#pContent video, #pageProfile video').forEach(v => {
       v.pause(); v.src = '';
     });
-    buildFeed();
-    loadUserFeed();
+    if (_skipFeedReload) {
+      // Открываем из профиля — не перезагружаем ленту
+      _skipFeedReload = false;
+    } else {
+      buildFeed();
+      loadUserFeed();
+    }
   }
   else if(page==='upload'){upPhase=0;upHasFile=false;renderUpForm();}
   else if(page==='create'){renderCreate();}
