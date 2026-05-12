@@ -19,6 +19,20 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 #app{width:100vw;height:100vh;height:100dvh;background:#0b0b0f;position:relative;overflow:hidden;display:flex;flex-direction:column;}
 
+/* ── TREND CARDS ── */
+.trend-card{border-radius:16px;overflow:hidden;background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.07);cursor:pointer;transition:transform .15s;display:flex;gap:0;flex-direction:row;margin-bottom:10px;}
+.trend-card:active{transform:scale(.98);}
+.trend-preview{width:100px;min-height:120px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;}
+.trend-views{position:absolute;bottom:6px;left:6px;font-size:10px;color:rgba(255,255,255,.6);background:rgba(0,0,0,.4);padding:2px 6px;border-radius:10px;}
+.trend-difficulty{position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;}
+.trend-difficulty.easy{background:rgba(74,222,128,.2);color:#4ade80;}
+.trend-difficulty.medium{background:rgba(251,191,36,.2);color:#fbbf24;}
+.trend-body{padding:12px 14px;flex:1;display:flex;flex-direction:column;justify-content:center;}
+.trend-cat{font-size:10px;color:rgba(255,255,255,.3);margin-bottom:4px;font-weight:500;}
+.trend-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;}
+.trend-tags{font-size:11px;color:rgba(99,102,241,.6);margin-bottom:8px;}
+.trend-btn{font-size:12px;color:#F2C12E;font-weight:600;}
+
 /* ── MODEL SELECTOR ── */
 .model-selector{background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:14px;margin:0 16px 12px;overflow:hidden;}
 .ms-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;user-select:none;}
@@ -1923,12 +1937,125 @@ const TOOLS=[
 let activeSty=new Set(), genning=false;
 
 const CREATE_TABS = [
+  { id: 'trends', label: '🔥 Тренды' },
   { id: 'text',   label: 'Текст'  },
   { id: 'design', label: 'Дизайн' },
   { id: 'video',  label: 'Видео'  },
   { id: 'audio',  label: 'Аудио'  },
 ];
-let activeCreateTab = 'text';
+
+// Трендовые промпты — добавляй сюда новые тренды
+const TRENDS = [
+  {
+    id: 'tr1',
+    title: 'Волк в снежных горах',
+    emoji: '🐺',
+    category: 'Природа',
+    difficulty: 'Легко',
+    model: 'Kling v1.6',
+    preview_color: 'linear-gradient(135deg,#0f2027,#2c5364)',
+    views: '2.4M',
+    prompt: 'A lone wolf walking through a frozen mountain valley, snow falling gently, cinematic wide shot, golden hour light reflecting off the snow, 4K, photorealistic',
+    instructions: [
+      'Открой вкладку Видео → Видео из текста',
+      'Выбери стиль: Реализм',
+      'Вставь промпт и нажми Сгенерировать',
+      'Опубликуй с хэштегами #природа #волк #kling',
+    ],
+    tags: '#природа #волк #горы #kling #ai',
+  },
+  {
+    id: 'tr2',
+    title: 'Киберпанк город ночью',
+    emoji: '🌆',
+    category: 'Городской',
+    difficulty: 'Легко',
+    model: 'Kling v1.6',
+    preview_color: 'linear-gradient(135deg,#1a1a2e,#e94560)',
+    views: '5.1M',
+    prompt: 'Cyberpunk city at night, neon lights reflecting on wet streets, flying cars in the sky, cinematic drone shot slowly descending, ultra detailed, 4K',
+    instructions: [
+      'Открой вкладку Видео → Видео из текста',
+      'Выбери стиль: Кинематограф',
+      'Вставь промпт и нажми Сгенерировать',
+      'Опубликуй с хэштегами #киберпанк #город #ai',
+    ],
+    tags: '#киберпанк #город #неон #kling #ai',
+  },
+  {
+    id: 'tr3',
+    title: 'Аниме девушка в сакуре',
+    emoji: '🌸',
+    category: 'Аниме',
+    difficulty: 'Легко',
+    model: 'Kling v1.6',
+    preview_color: 'linear-gradient(135deg,#4a044e,#f472b6)',
+    views: '8.7M',
+    prompt: 'Beautiful anime girl standing under cherry blossom tree, petals falling around her, soft wind, Studio Ghibli style, warm sunlight, cinematic shot',
+    instructions: [
+      'Открой вкладку Видео → Видео из текста',
+      'Выбери стиль: Аниме',
+      'Вставь промпт и нажми Сгенерировать',
+      'Добавь музыку и опубликуй',
+    ],
+    tags: '#аниме #сакура #ghibli #kling #ai',
+  },
+  {
+    id: 'tr4',
+    title: 'Океанские волны на рассвете',
+    emoji: '🌊',
+    category: 'Природа',
+    difficulty: 'Легко',
+    model: 'Kling v1.6',
+    preview_color: 'linear-gradient(135deg,#0f4c75,#1b9aaa)',
+    views: '3.2M',
+    prompt: 'Ocean waves crashing on rocky shore at sunrise, golden light on water, slow motion, cinematic, peaceful atmosphere, birds flying in background',
+    instructions: [
+      'Открой вкладку Видео → Видео из текста',
+      'Выбери стиль: Реализм',
+      'Вставь промпт и нажми Сгенерировать',
+      'Опубликуй с расслабляющей музыкой',
+    ],
+    tags: '#океан #рассвет #природа #kling #ai',
+  },
+  {
+    id: 'tr5',
+    title: 'Дракон над замком',
+    emoji: '🐉',
+    category: 'Фэнтези',
+    difficulty: 'Средне',
+    model: 'Kling v1.6',
+    preview_color: 'linear-gradient(135deg,#1a0533,#6b21a8)',
+    views: '12.3M',
+    prompt: 'Massive dragon flying over a medieval castle at dusk, fire breathing, epic cinematic scale, storm clouds in background, dramatic lighting, 4K',
+    instructions: [
+      'Открой вкладку Видео → Видео из текста',
+      'Выбери стиль: Кинематограф',
+      'Вставь промпт и нажми Сгенерировать',
+      'Добавь эпическую музыку перед публикацией',
+    ],
+    tags: '#дракон #фэнтези #замок #kling #ai',
+  },
+  {
+    id: 'tr6',
+    title: 'Космический закат',
+    emoji: '🚀',
+    category: 'Космос',
+    difficulty: 'Легко',
+    model: 'Kling v1.6',
+    preview_color: 'linear-gradient(135deg,#0d0d2b,#f97316)',
+    views: '6.8M',
+    prompt: 'Astronaut standing on alien planet surface watching twin suns setting, purple sky, distant mountains, cinematic wide shot, epic scale, photorealistic',
+    instructions: [
+      'Открой вкладку Видео → Видео из текста',
+      'Выбери стиль: Реализм или Кинематограф',
+      'Вставь промпт и нажми Сгенерировать',
+      'Опубликуй с космической музыкой',
+    ],
+    tags: '#космос #астронавт #планета #kling #ai',
+  },
+];
+let activeCreateTab = 'trends';
 
 function renderCreate() {
   const b = document.getElementById('createBody');
@@ -1962,6 +2089,10 @@ function switchCreateTab(tabId) {
 }
 
 function renderCreateContent(tabId) {
+  if (tabId === 'trends') {
+    renderTrends();
+    return;
+  }
   const all = TOOLS.filter(t => t.cat === tabId);
   const live = all.filter(t => t.status === 'live');
   const soon = all.filter(t => t.status === 'soon');
@@ -1969,6 +2100,90 @@ function renderCreateContent(tabId) {
   if (soonHeader) soonHeader.style.display = soon.length ? 'flex' : 'none';
   renderToolCards('liveToolsGrid', live, false);
   renderToolCards('soonToolsGrid', soon, true);
+}
+
+function renderTrends() {
+  const live = document.getElementById('liveToolsGrid');
+  const soon = document.getElementById('soonToolsGrid');
+  const soonHeader = document.getElementById('soonHeader');
+  if (soonHeader) soonHeader.style.display = 'none';
+  if (soon) soon.innerHTML = '';
+  if (!live) return;
+
+  live.style.gridTemplateColumns = '1fr';
+  live.innerHTML = TRENDS.map(t => `
+    <div class="trend-card" onclick="openTrend('${t.id}')">
+      <div class="trend-preview" style="background:${t.preview_color}">
+        <span style="font-size:36px;">${t.emoji}</span>
+        <div class="trend-views">👁 ${t.views}</div>
+        <div class="trend-difficulty ${t.difficulty === 'Легко' ? 'easy' : 'medium'}">${t.difficulty}</div>
+      </div>
+      <div class="trend-body">
+        <div class="trend-cat">${t.category} · ${t.model}</div>
+        <div class="trend-title">${t.title}</div>
+        <div class="trend-tags">${t.tags}</div>
+        <div class="trend-btn">Попробовать →</div>
+      </div>
+    </div>`).join('');
+
+  // Restore grid for other tabs
+  live.style.gridTemplateColumns = '';
+}
+
+function openTrend(id) {
+  const t = TRENDS.find(x => x.id === id);
+  if (!t) return;
+
+  const page = document.getElementById('aiChatPage');
+  if (!page) return;
+
+  // Set up like a video tool
+  aiChatTool = TOOLS.find(x => x.id === 'video') || TOOLS[0];
+  aiChatStyle = 'Кинематограф';
+
+  document.getElementById('aiChatName').textContent = t.title;
+  document.getElementById('aiChatModel').textContent = t.model;
+
+  const ms = document.getElementById('aiModelSelector');
+  const tms = document.getElementById('aiTextModelSelector');
+  if (ms) ms.style.display = 'block';
+  if (tms) tms.style.display = 'none';
+  initModelSelector();
+
+  // Show chips hidden
+  const chips = document.getElementById('aiStyleChips');
+  if (chips) chips.style.display = 'none';
+
+  // Show trend instructions
+  const msgs = document.getElementById('aiChatMsgs');
+  if (msgs) {
+    msgs.innerHTML = `
+      <div style="background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:8px;">
+        <div style="font-size:22px;margin-bottom:8px;">${t.emoji}</div>
+        <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:4px;">${t.title}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.35);margin-bottom:12px;">${t.category} · 👁 ${t.views} просмотров</div>
+        <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.6);margin-bottom:8px;">📋 Инструкция:</div>
+        ${t.instructions.map((step, i) => `
+          <div style="display:flex;gap:10px;margin-bottom:6px;font-size:13px;color:rgba(255,255,255,.7);">
+            <span style="width:20px;height:20px;border-radius:50%;background:rgba(242,193,46,.2);color:#F2C12E;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${i+1}</span>
+            <span>${step}</span>
+          </div>`).join('')}
+        <div style="margin-top:14px;background:rgba(99,102,241,.1);border:.5px solid rgba(99,102,241,.3);border-radius:12px;padding:12px;">
+          <div style="font-size:11px;color:rgba(99,102,241,.8);margin-bottom:6px;font-weight:600;">ПРОМПТ (уже вставлен):</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.5;">${t.prompt}</div>
+        </div>
+        <div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:10px;">${t.tags}</div>
+      </div>`;
+    // Pre-fill input with prompt
+    const input = document.getElementById('aiChatInput');
+    if (input) {
+      input.value = t.prompt;
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    }
+  }
+
+  page.classList.add('open');
 }
 
 function renderToolCards(gridId, tools, disabled) {
