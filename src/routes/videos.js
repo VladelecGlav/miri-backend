@@ -2,39 +2,65 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { v4 as uuid } from 'uuid';
-import AWS from 'aws-sdk';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Yandex Object Storage через aws-sdk v2
-const s3 = new AWS.S3({
-  endpoint: 'https://storage.yandexcloud.net',
-  accessKeyId:     process.env.YC_ACCESS_KEY,
-  secretAccessKey: process.env.YC_SECRET_KEY,
-  region: 'ru-central1',
-  httpOptions: { timeout: 300000 },
-  s3ForcePathStyle: true,
-  signatureVersion: 'v4',
-});
+const YC_BUCKET     = process.env.YC_BUCKET     || 'miri-videos';
+const YC_ACCESS_KEY = process.env.YC_ACCESS_KEY  || '';
+const YC_SECRET_KEY = process.env.YC_SECRET_KEY  || '';
+const YC_REGION     = 'ru-central1';
+const YC_HOST       = 'storage.yandexcloud.net';
 
-const YC_BUCKET = process.env.YC_BUCKET || 'miri-videos';
+// Генерация presigned URL для прямой загрузки с браузера
+function getPresignedUrl(key, mimetype, expiresIn = 900) {
+  const now    = new Date();
+  const date   = now.toISOString().slice(0,10).replace(/-/g,'');
+  const time   = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
+  const expiry = expiresIn;
 
-async function uploadToYandex(buffer, filename, mimetype) {
-  const key = `videos/${filename}`;
-  await s3.putObject({
-    Bucket: YC_BUCKET,
-    Key: key,
-    Body: buffer,
-    ContentType: mimetype,
-    ACL: 'public-read',
-  }).promise();
-  return `https://storage.yandexcloud.net/${YC_BUCKET}/${key}`;
+  const credScope  = `${date}/${YC_REGION}/s3/aws4_request`;
+  const credential = `${YC_ACCESS_KEY}/${credScope}`;
+
+  const queryParams = new URLSearchParams({
+    'X-Amz-Algorithm':     'AWS4-HMAC-SHA256',
+    'X-Amz-Credential':    credential,
+    'X-Amz-Date':          time,
+    'X-Amz-Expires':       String(expiry),
+    'X-Amz-SignedHeaders': 'host',
+  });
+
+  const canonicalRequest = [
+    'PUT',
+    `/${key}`,
+    queryParams.toString(),
+    `host:${YC_HOST}
+`,
+    'host',
+    'UNSIGNED-PAYLOAD',
+  ].join('
+');
+
+  const strToSign = [
+    'AWS4-HMAC-SHA256',
+    time,
+    credScope,
+    crypto.createHash('sha256').update(canonicalRequest).digest('hex'),
+  ].join('
+');
+
+  const sign = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
+  const signingKey = sign(sign(sign(sign(`AWS4${YC_SECRET_KEY}`, date), YC_REGION), 's3'), 'aws4_request');
+  const signature  = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
+
+  queryParams.append('X-Amz-Signature', signature);
+  return `https://${YC_HOST}/${key}?${queryParams.toString()}`;
 }
 
-// Multer — в память для S3, на диск как fallback
+// Multer для локального fallback
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 500*1024*1024 },
@@ -54,23 +80,42 @@ async function fmt(v, viewerId) {
   };
 }
 
-router.post('/upload', authenticate, upload.single('video'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
-  const { title, description, tags, is_public, allow_comments, has_ai_badge } = req.body;
-  if (!title) return res.status(400).json({ error: 'Название обязательно' });
-  try {
-    const filename = `${uuid()}${path.extname(req.file.originalname)}`;
-    let fileUrl;
+// GET /api/videos/presign — получить presigned URL для загрузки в Yandex S3
+router.get('/presign', authenticate, async (req, res) => {
+  const { filename, mimetype } = req.query;
+  if (!filename || !mimetype) return res.status(400).json({ error: 'filename и mimetype обязательны' });
 
-    if (process.env.YC_ACCESS_KEY && process.env.YC_SECRET_KEY) {
-      // Загружаем в Yandex Object Storage
-      fileUrl = await uploadToYandex(req.file.buffer, filename, req.file.mimetype);
+  if (!YC_ACCESS_KEY || !YC_SECRET_KEY) {
+    return res.status(400).json({ error: 'S3 не настроен' });
+  }
+
+  const key = `videos/${uuid()}${path.extname(filename)}`;
+  const uploadUrl = getPresignedUrl(key, mimetype);
+  const publicUrl = `https://${YC_HOST}/${YC_BUCKET}/${key.split('/').pop()}`;
+
+  res.json({ uploadUrl, publicUrl, key });
+});
+
+router.post('/upload', authenticate, upload.single('video'), async (req, res) => {
+  // Поддерживаем два варианта: file_url (уже загружено в S3) или file (локальная загрузка)
+  const { title, description, tags, is_public, allow_comments, has_ai_badge, file_url: s3Url } = req.body;
+  if (!title) return res.status(400).json({ error: 'Название обязательно' });
+  if (!req.file && !s3Url) return res.status(400).json({ error: 'Файл не загружен' });
+  try {
+    let fileUrl;
+    let fileSize = 0;
+
+    if (s3Url) {
+      // Видео уже загружено напрямую в S3 с фронтенда
+      fileUrl = s3Url;
     } else {
-      // Fallback — локальный диск
+      // Локальная загрузка через сервер (fallback)
+      const filename = `${uuid()}${path.extname(req.file.originalname)}`;
       const dir = './uploads/videos';
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(`${dir}/${filename}`, req.file.buffer);
       fileUrl = `/uploads/videos/${filename}`;
+      fileSize = req.file.size;
     }
 
     const id = uuid();
@@ -78,7 +123,7 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     await dbRun(
       'INSERT INTO videos (id,user_id,title,description,file_path,tags,is_public,allow_comments,has_ai_badge,file_size) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
       [id, req.user.id, title, description||null, fileUrl, parsedTags,
-       is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge?1:0, req.file.size]
+       is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge?1:0, fileSize]
     );
     const video = await dbGet('SELECT * FROM videos WHERE id=$1', [id]);
     res.status(201).json({ video: await fmt(video, req.user.id) });

@@ -2721,59 +2721,85 @@ async function upStart(){
       if (s) s.textContent = stage;
     };
 
-    updateUI(10, 'Подготовка файла');
+    updateUI(5, 'Подготовка файла');
 
-    const fd = new FormData();
-    fd.append('video', upRealFile, upRealFileName || 'video.mp4');
-    fd.append('title', title);
-    fd.append('tags', tags);
-    fd.append('is_public', isPublic ? 'true' : 'false');
-    fd.append('has_ai_badge', 'true');
+    try {
+      let fileUrl = null;
 
-    updateUI(30, 'Загрузка на сервер');
+      // Пробуем загрузить напрямую в Yandex S3 через presigned URL
+      const presignRes = await api('GET', '/api/videos/presign?filename=' + encodeURIComponent(upRealFileName || 'video.mp4') + '&mimetype=' + encodeURIComponent(upRealFile.type || 'video/mp4'));
 
-    // Use XMLHttpRequest for real upload progress
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', API_URL + '/api/videos/upload');
-    if (API_TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + API_TOKEN);
+      if (presignRes.ok && presignRes.data.uploadUrl) {
+        updateUI(15, 'Загрузка в облако Яндекс...');
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 70) + 20; // 20-90%
-        updateUI(pct, pct < 60 ? 'Загрузка на сервер' : 'Обработка видео');
+        // Загружаем напрямую в S3
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', presignRes.data.uploadUrl);
+          xhr.setRequestHeader('Content-Type', upRealFile.type || 'video/mp4');
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 75) + 15;
+              updateUI(pct, pct < 60 ? 'Загрузка в облако...' : 'Почти готово...');
+            }
+          };
+          xhr.onload = () => xhr.status < 300 ? resolve() : reject(new Error('S3 ' + xhr.status));
+          xhr.onerror = () => reject(new Error('Ошибка соединения'));
+          xhr.send(upRealFile);
+        });
+
+        fileUrl = presignRes.data.publicUrl;
+        updateUI(92, 'Сохраняем в базу...');
       }
-    };
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        updateUI(100, 'Готово!');
-        try {
-          const res = JSON.parse(xhr.responseText);
-          upLastVideoId = res.video?.id || null;
-        } catch(e) {}
-        setTimeout(upDone, 400);
+      // Регистрируем видео в нашем API
+      const fd = new FormData();
+      if (fileUrl) {
+        // Видео уже в S3 — передаём только URL
+        fd.append('file_url', fileUrl);
       } else {
-        let errMsg = 'Ошибка загрузки';
-        try { errMsg = JSON.parse(xhr.responseText).error || errMsg; } catch(e) {}
-        document.getElementById('upTitle').textContent = 'Ошибка';
-        document.getElementById('upBody').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;padding:40px 24px;gap:14px;text-align:center;">
-          <div style="font-size:32px;">⚠️</div>
-          <div style="font-size:16px;font-weight:700;color:#fff;">${errMsg}</div>
-          <button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">Попробовать снова</button>
-        </div>`;
+        // Fallback — загружаем через наш сервер
+        updateUI(20, 'Загрузка на сервер...');
+        fd.append('video', upRealFile, upRealFileName || 'video.mp4');
       }
-    };
+      fd.append('title', title);
+      fd.append('tags', tags);
+      fd.append('is_public', isPublic ? 'true' : 'false');
+      fd.append('has_ai_badge', 'true');
 
-    xhr.onerror = () => {
+      const xhr2 = new XMLHttpRequest();
+      xhr2.open('POST', API_URL + '/api/videos/upload');
+      if (API_TOKEN) xhr2.setRequestHeader('Authorization', 'Bearer ' + API_TOKEN);
+      if (!fileUrl) {
+        xhr2.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 70) + 20;
+            updateUI(pct, pct < 60 ? 'Загрузка...' : 'Обработка...');
+          }
+        };
+      }
+      xhr2.onload = () => {
+        if (xhr2.status >= 200 && xhr2.status < 300) {
+          updateUI(100, 'Готово!');
+          try { upLastVideoId = JSON.parse(xhr2.responseText).video?.id || null; } catch(e) {}
+          setTimeout(upDone, 400);
+        } else {
+          let errMsg = 'Ошибка загрузки';
+          try { errMsg = JSON.parse(xhr2.responseText).error || errMsg; } catch(e) {}
+          document.getElementById('upTitle').textContent = 'Ошибка';
+          document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">⚠️</div><div style="font-size:16px;color:#fff;margin:12px 0;">' + errMsg + '</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
+        }
+      };
+      xhr2.onerror = () => {
+        document.getElementById('upTitle').textContent = 'Ошибка';
+        document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">📡</div><div style="font-size:16px;color:#fff;margin:12px 0;">Нет связи с сервером</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
+      };
+      xhr2.send(fd);
+
+    } catch(uploadErr) {
       document.getElementById('upTitle').textContent = 'Ошибка';
-      document.getElementById('upBody').innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;padding:40px 24px;gap:14px;text-align:center;">
-        <div style="font-size:32px;">📡</div>
-        <div style="font-size:16px;font-weight:700;color:#fff;">Нет связи с сервером</div>
-        <button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">Попробовать снова</button>
-      </div>`;
-    };
-
-    xhr.send(fd);
+      document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">⚠️</div><div style="font-size:16px;color:#fff;margin:12px 0;">' + uploadErr.message + '</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
+    }
 
   } else {
     // No real file — simulate
