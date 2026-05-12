@@ -1666,8 +1666,25 @@ function getOrCreateSharedVideo() {
   sharedVideo.id = 'sharedVid';
   sharedVideo.setAttribute('playsinline', '');
   sharedVideo.setAttribute('loop', '');
+  sharedVideo.setAttribute('preload', 'auto');
   sharedVideo.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;';
   return sharedVideo;
+}
+
+function preloadNextVideo(idx) {
+  const feedData = serverVideos || VIDS;
+  const next = feedData[idx + 1];
+  if (!next || !next.fileUrl) return;
+  // Create invisible preload link
+  const existing = document.getElementById('preloadVid');
+  if (existing) existing.remove();
+  const preload = document.createElement('video');
+  preload.id = 'preloadVid';
+  preload.preload = 'auto';
+  preload.src = next.fileUrl;
+  preload.muted = true;
+  preload.style.display = 'none';
+  document.body.appendChild(preload);
 }
 
 function playSlideVideo(idx) {
@@ -1702,6 +1719,7 @@ function playSlideVideo(idx) {
   }
   vid.muted = false;
   updateSoundIcon();
+  preloadNextVideo(idx);
   vid.play().catch(() => {
     vid.muted = true;
     vid.play().catch(() => {});
@@ -3421,7 +3439,10 @@ function openVideoFromProfile(videoId) {
   }));
 
   navTo('feed');
-  setTimeout(() => fGoTo(0, false), 150);
+  setTimeout(() => {
+    buildFeed();
+    setTimeout(() => fGoTo(0, false), 100);
+  }, 100);
 }
 
 let editModeOn = false;
