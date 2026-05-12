@@ -2208,6 +2208,7 @@ let activeCreateTab = 'trends';
 
 function renderCreate() {
   const b = document.getElementById('createBody');
+  if (!b) return;
   b.innerHTML =
     '<div class="create-tabs-bar" id="createTabsBar"></div>' +
     '<div id="liveToolsGrid" class="create-tools-grid"></div>' +
@@ -2239,7 +2240,7 @@ function switchCreateTab(tabId) {
 
 function renderCreateContent(tabId) {
   if (tabId === 'trends') {
-    renderTrends();
+    renderTrends().catch(function(e){ console.error('renderTrends error:', e); });
     return;
   }
   const all = TOOLS.filter(t => t.cat === tabId);
