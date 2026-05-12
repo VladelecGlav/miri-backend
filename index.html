@@ -610,7 +610,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
 <div id="app">
 
   <!-- AUTH -->
-  <div class="page active" id="pageAuth">
+  <div class="page" id="pageAuth">
     <div class="orb oa"></div><div class="orb ob"></div>
     <div class="auth-logo-wrap fade-in">
       <div class="auth-logo-row">
@@ -4618,6 +4618,30 @@ function showAuth() {
 }
 
 (function init() {
+  // Immediately show feed or auth based on stored token — no flash
+  var quickToken = null;
+  var quickUser  = null;
+  try { quickToken = localStorage.getItem('miri_token') || sessionStorage.getItem('miri_token_bak'); } catch(e) {}
+  try { quickUser  = localStorage.getItem('miri_user')  || sessionStorage.getItem('miri_user_bak');  } catch(e) {}
+
+  if (quickToken && quickUser) {
+    // Has session — show feed immediately, verify in background
+    try {
+      var u = JSON.parse(quickUser);
+      if (u && u.id) {
+        API_TOKEN = quickToken;
+        document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+        var feedPage = document.getElementById('pageFeed');
+        if (feedPage) feedPage.classList.add('active');
+      }
+    } catch(e) {}
+  } else {
+    // No session — show auth
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+    var authPage = document.getElementById('pageAuth');
+    if (authPage) authPage.classList.add('active');
+  }
+
   async function restoreSession() {
     // 1. Restore following from localStorage
     try {
