@@ -7,29 +7,33 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// ── Yandex Object Storage (AWS SDK) ─────────────────────
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+// ── Yandex Object Storage (node-fetch + aws4) ───────────
+import aws4 from 'aws4';
 
 const YC_BUCKET     = process.env.YC_BUCKET     || 'miri-videos';
 const YC_ACCESS_KEY = process.env.YC_ACCESS_KEY || '';
 const YC_SECRET_KEY = process.env.YC_SECRET_KEY || '';
 
-const s3 = new S3Client({
-  region: 'ru-central1',
-  endpoint: 'https://storage.yandexcloud.net',
-  credentials: { accessKeyId: YC_ACCESS_KEY, secretAccessKey: YC_SECRET_KEY },
-});
-
 async function uploadToYandex(buffer, filename, mimetype) {
-  const key = `videos/${filename}`;
-  await s3.send(new PutObjectCommand({
-    Bucket: YC_BUCKET,
-    Key: key,
-    Body: buffer,
-    ContentType: mimetype,
-    ACL: 'public-read',
-  }));
-  return `https://storage.yandexcloud.net/${YC_BUCKET}/${key}`;
+  const key  = `${YC_BUCKET}/videos/${filename}`;
+  const opts = {
+    service: 's3',
+    region:  'ru-central1',
+    host:    'storage.yandexcloud.net',
+    method:  'PUT',
+    path:    `/${key}`,
+    headers: { 'Content-Type': mimetype, 'x-amz-acl': 'public-read' },
+    body:    buffer,
+  };
+  aws4.sign(opts, { accessKeyId: YC_ACCESS_KEY, secretAccessKey: YC_SECRET_KEY });
+
+  const resp = await fetch(`https://storage.yandexcloud.net/${key}`, {
+    method:  'PUT',
+    headers: opts.headers,
+    body:    buffer,
+  });
+  if (!resp.ok) throw new Error(`Yandex S3 ${resp.status}: ${await resp.text()}`);
+  return `https://storage.yandexcloud.net/${key}`;
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500*1024*1024 } });
