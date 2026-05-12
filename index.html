@@ -2359,7 +2359,7 @@ function renderCreateTrendModal() {
   modal.id = 'ctModal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;display:flex;align-items:flex-end;';
 
-  const TOOL_OPTIONS = [
+  var TOOL_OPTIONS_CT = [
     { value: 'text',  label: '✍️ Текст', icon: '✍️' },
     { value: 'image', label: '🖼 Изображение', icon: '🖼' },
     { value: 'video', label: '🎬 Видео', icon: '🎬' },
@@ -2372,7 +2372,7 @@ function renderCreateTrendModal() {
         '<span style="font-size:16px;">' + s.icon + '</span>' +
         '<span style="font-size:13px;font-weight:600;color:#fff;">Шаг ' + (i+1) + '</span>' +
         '<select id="ctTool_' + i + '" onchange="ctUpdateStepTool(' + i + ')" style="margin-left:auto;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:8px;padding:4px 8px;color:#fff;font-size:12px;">' +
-          TOOL_OPTIONS.map(function(o){ return '<option value="' + o.value + '"' + (s.tool === o.value ? ' selected' : '') + '>' + o.label + '</option>'; }).join('') +
+          TOOL_OPTIONS_CT.map(function(o){ return '<option value="' + o.value + '"' + (s.tool === o.value ? ' selected' : '') + '>' + o.label + '</option>'; }).join('') +
         '</select>' +
         (ctSteps.length > 1 ? '<button onclick="ctRemoveStep(' + i + ')" style="background:rgba(239,68,68,.2);border:none;border-radius:6px;padding:4px 8px;color:#ef4444;font-size:11px;cursor:pointer;">✕</button>' : '') +
       '</div>' +
@@ -2380,31 +2380,96 @@ function renderCreateTrendModal() {
     '</div>';
   }).join('');
 
-  modal.innerHTML =
-    '<div style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding:20px 16px max(env(safe-area-inset-bottom,0)+16px,20px);">' +
-      '<div style="display:flex;align-items:center;margin-bottom:16px;">' +
-        '<div style="font-size:16px;font-weight:700;color:#fff;flex:1;">Создать тренд</div>' +
-        '<button onclick="document.getElementById('ctModal').remove()" style="background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;">Закрыть</button>' +
-      '</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
-        '<input id="ctEmoji" value="✨" style="width:52px;text-align:center;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:20px;" placeholder="🎯">' +
-        '<input id="ctTitle" placeholder="Название тренда" style="flex:1;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:14px;font-family:-apple-system,sans-serif;">' +
-      '</div>' +
-      '<div style="display:flex;gap:8px;margin-bottom:14px;">' +
-        '<input id="ctCategory" placeholder="Категория" value="Другое" style="flex:1;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:13px;font-family:-apple-system,sans-serif;">' +
-        '<select id="ctDifficulty" style="background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px;color:#fff;font-size:13px;">' +
-          '<option value="Легко">Легко</option>' +
-          '<option value="Средне">Средне</option>' +
-          '<option value="Сложно">Сложно</option>' +
-        '</select>' +
-      '</div>' +
-      '<div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:8px;">Шаги</div>' +
-      '<div id="ctStepsList">' + stepsHtml + '</div>' +
-      '<button onclick="ctAddStep()" style="width:100%;height:40px;background:rgba(255,255,255,.04);border:.5px dashed rgba(255,255,255,.15);border-radius:10px;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer;margin-bottom:14px;">+ Добавить шаг</button>' +
-      '<button onclick="ctSaveTrend()" style="width:100%;height:50px;background:#F2C12E;border:none;border-radius:14px;font-size:15px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">Опубликовать тренд</button>' +
-    '</div>';
-
+  modal.innerHTML = '<div id="ctInner" style="background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding:20px 16px 30px;"></div>';
   document.body.appendChild(modal);
+  const inner = document.getElementById('ctInner');
+  if (!inner) return;
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;align-items:center;margin-bottom:16px;';
+  hdr.innerHTML = '<div style="font-size:16px;font-weight:700;color:#fff;flex:1;">Создать тренд</div>';
+  const closeBtn2 = document.createElement('button');
+  closeBtn2.textContent = 'Закрыть';
+  closeBtn2.style.cssText = 'background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;color:rgba(255,255,255,.5);font-size:12px;cursor:pointer;';
+  closeBtn2.onclick = function(){ modal.remove(); };
+  hdr.appendChild(closeBtn2);
+  inner.appendChild(hdr);
+
+  // Emoji + Title
+  const row1 = document.createElement('div');
+  row1.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
+  row1.innerHTML =
+    '<input id="ctEmoji" value="✨" style="width:52px;text-align:center;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:20px;">' +
+    '<input id="ctTitle" placeholder="Название тренда" style="flex:1;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:14px;font-family:-apple-system,sans-serif;">';
+  inner.appendChild(row1);
+
+  // Category + Difficulty
+  const row2 = document.createElement('div');
+  row2.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
+  row2.innerHTML =
+    '<input id="ctCategory" value="Другое" placeholder="Категория" style="flex:1;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px;color:#fff;font-size:13px;font-family:-apple-system,sans-serif;">' +
+    '<select id="ctDifficulty" style="background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px;color:#fff;font-size:13px;"><option value="Легко">Легко</option><option value="Средне">Средне</option><option value="Сложно">Сложно</option></select>';
+  inner.appendChild(row2);
+
+  // Steps label
+  const lbl = document.createElement('div');
+  lbl.style.cssText = 'font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:8px;';
+  lbl.textContent = 'Шаги';
+  inner.appendChild(lbl);
+
+  // Steps list
+  const stepsList = document.createElement('div');
+  stepsList.id = 'ctStepsList';
+  var TOOL_OPTIONS2 = [{value:'text',label:'✍️ Текст'},{value:'image',label:'🖼 Изображение'},{value:'video',label:'🎬 Видео'},{value:'voice',label:'🎙 Озвучка'}];
+  ctSteps.forEach(function(s, i) {
+    const stepDiv = document.createElement('div');
+    stepDiv.style.cssText = 'background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;margin-bottom:8px;';
+    const stepHdr = document.createElement('div');
+    stepHdr.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    stepHdr.innerHTML = '<span style="font-size:16px;">' + s.icon + '</span><span style="font-size:13px;font-weight:600;color:#fff;">Шаг ' + (i+1) + '</span>';
+    const sel = document.createElement('select');
+    sel.id = 'ctTool_' + i;
+    sel.style.cssText = 'margin-left:auto;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:8px;padding:4px 8px;color:#fff;font-size:12px;';
+    TOOL_OPTIONS2.forEach(function(o){ const opt = document.createElement('option'); opt.value = o.value; opt.textContent = o.label; if(s.tool===o.value) opt.selected=true; sel.appendChild(opt); });
+    sel.onchange = (function(idx){ return function(){ ctUpdateStepTool(idx); }; })(i);
+    stepHdr.appendChild(sel);
+    if (ctSteps.length > 1) {
+      const del = document.createElement('button');
+      del.textContent = '✕'; del.style.cssText = 'background:rgba(239,68,68,.2);border:none;border-radius:6px;padding:4px 8px;color:#ef4444;font-size:11px;cursor:pointer;';
+      del.onclick = (function(idx){ return function(){ ctRemoveStep(idx); }; })(i);
+      stepHdr.appendChild(del);
+    }
+    stepDiv.appendChild(stepHdr);
+    const ta = document.createElement('textarea');
+    ta.id = 'ctPrompt_' + i; ta.value = s.prompt;
+    ta.placeholder = 'Промпт для этого шага...';
+    ta.style.cssText = 'width:100%;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:8px;padding:8px;color:#fff;font-size:12px;font-family:-apple-system,sans-serif;resize:vertical;min-height:60px;box-sizing:border-box;';
+    stepDiv.appendChild(ta);
+    stepsList.appendChild(stepDiv);
+  });
+  inner.appendChild(stepsList);
+
+  // Add step button
+  const addBtn = document.createElement('button');
+  addBtn.textContent = '+ Добавить шаг';
+  addBtn.style.cssText = 'width:100%;height:40px;background:rgba(255,255,255,.04);border:.5px dashed rgba(255,255,255,.15);border-radius:10px;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer;margin-bottom:14px;';
+  addBtn.onclick = ctAddStep;
+  inner.appendChild(addBtn);
+
+  // Save button
+  const saveBtn = document.createElement('button');
+  saveBtn.id = 'ctSaveBtn';
+  saveBtn.textContent = 'Опубликовать тренд';
+  saveBtn.style.cssText = 'width:100%;height:50px;background:#F2C12E;border:none;border-radius:14px;font-size:15px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;';
+  saveBtn.onclick = ctSaveTrend;
+  inner.appendChild(saveBtn);
+
+  // Remove old body.appendChild since we already did it
+  // dummy line to replace
+  var _dummy = 1;
+  document.body.appendChild(modal);
+
 }
 
 function ctUpdateStepTool(i) {
@@ -2453,7 +2518,7 @@ async function ctSaveTrend() {
     return { id: i+1, name: NAMES[s.tool]||s.name, icon: s.icon, tool: s.tool, model: MODELS[s.tool], provider: s.tool === 'text' ? 'claude' : null, prompt: s.prompt };
   });
 
-  const btn = document.querySelector('#ctModal button:last-child');
+  const btn = document.getElementById('ctSaveBtn');
   if (btn) { btn.textContent = '⏳ Сохраняем...'; btn.disabled = true; }
 
   const res = await api('POST', '/api/trends', { title, emoji, category, difficulty, steps,
