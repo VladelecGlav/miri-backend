@@ -7,11 +7,71 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, './uploads/videos'),
-  filename:    (req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname)}`),
+// ── Yandex Object Storage (S3-совместимый) ──────────────
+const YC_BUCKET     = process.env.YC_BUCKET     || 'miri-videos';
+const YC_ACCESS_KEY = process.env.YC_ACCESS_KEY || '';
+const YC_SECRET_KEY = process.env.YC_SECRET_KEY || '';
+const YC_ENDPOINT   = 'https://storage.yandexcloud.net';
+const YC_REGION     = 'ru-central1';
+
+// AWS4 подпись для Yandex S3
+async function uploadToYandex(buffer, filename, mimetype) {
+  const key  = `videos/${filename}`;
+  const host = `${YC_BUCKET}.storage.yandexcloud.net`;
+  const now  = new Date();
+  const date = now.toISOString().slice(0,10).replace(/-/g,'');
+  const time = now.toISOString().replace(/[-:]/g,'').slice(0,15) + 'Z';
+
+  const crypto = await import('crypto');
+
+  const sign = (key, msg) => crypto.default.createHmac('sha256', key).update(msg).digest();
+  const hex  = buf => Buffer.from(buf).toString('hex');
+  const sha256hex = data => crypto.default.createHash('sha256').update(data).digest('hex');
+
+  const payloadHash = sha256hex(buffer);
+  const headers = {
+    'host': host,
+    'x-amz-content-sha256': payloadHash,
+    'x-amz-date': time,
+    'content-type': mimetype,
+  };
+  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+  const canonicalHeaders = Object.entries(headers).sort(([a],[b])=>a.localeCompare(b))
+    .map(([k,v])=>`${k}:${v}`).join('\n') + '\n';
+
+  const canonicalRequest = [
+    'PUT', `/${key}`, '',
+    canonicalHeaders, signedHeaders, payloadHash
+  ].join('\n');
+
+  const credScope = `${date}/${YC_REGION}/s3/aws4_request`;
+  const strToSign = ['AWS4-HMAC-SHA256', time, credScope, sha256hex(canonicalRequest)].join('\n');
+
+  const signingKey = sign(sign(sign(sign(`AWS4${YC_SECRET_KEY}`, date), YC_REGION), 's3'), 'aws4_request');
+  const signature  = hex(sign(signingKey, strToSign));
+
+  const authHeader = `AWS4-HMAC-SHA256 Credential=${YC_ACCESS_KEY}/${credScope},SignedHeaders=${signedHeaders},Signature=${signature}`;
+
+  const url = `${YC_ENDPOINT}/${YC_BUCKET}/${key}`;
+  const resp = await fetch(url, {
+    method: 'PUT',
+    headers: { ...headers, 'Authorization': authHeader, 'Content-Length': buffer.length },
+    body: buffer,
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`Yandex S3 error ${resp.status}: ${text}`);
+  }
+
+  return `${YC_ENDPOINT}/${YC_BUCKET}/${key}`;
+}
+
+// Multer — держим файл в памяти для загрузки в S3
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500*1024*1024 }
 });
-const upload = multer({ storage, limits: { fileSize: 500*1024*1024 } });
 
 function fmt(v, viewerId) {
   const author = db.prepare('SELECT id,name,handle,avatar_url FROM users WHERE id=?').get(v.user_id) || {};
@@ -27,17 +87,38 @@ function fmt(v, viewerId) {
   };
 }
 
-router.post('/upload', authenticate, upload.single('video'), (req, res) => {
+router.post('/upload', authenticate, upload.single('video'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
   const { title, description, tags, is_public, allow_comments, has_ai_badge } = req.body;
   if (!title) return res.status(400).json({ error: 'Название обязательно' });
-  const id = uuid();
-  const parsedTags = (() => { try { return tags ? JSON.stringify(JSON.parse(tags)) : '[]'; } catch { return JSON.stringify((tags||'').split(',').map(t=>t.trim()).filter(Boolean)); } })();
-  db.prepare(`INSERT INTO videos (id,user_id,title,description,file_path,tags,is_public,allow_comments,has_ai_badge,file_size) VALUES (?,?,?,?,?,?,?,?,?,?)`).run(
-    id, req.user.id, title, description||null, `/uploads/videos/${req.file.filename}`,
-    parsedTags, is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge!=='false'?1:0, req.file.size
-  );
-  res.status(201).json({ video: fmt(db.prepare('SELECT * FROM videos WHERE id=?').get(id), req.user.id) });
+
+  try {
+    const filename = `${uuid()}${path.extname(req.file.originalname)}`;
+    let fileUrl;
+
+    if (YC_ACCESS_KEY && YC_SECRET_KEY) {
+      // Загружаем в Yandex Object Storage
+      fileUrl = await uploadToYandex(req.file.buffer, filename, req.file.mimetype);
+    } else {
+      // Fallback — локальное хранилище
+      const fs = await import('fs');
+      const uploadDir = './uploads/videos';
+      if (!fs.default.existsSync(uploadDir)) fs.default.mkdirSync(uploadDir, { recursive: true });
+      fs.default.writeFileSync(`${uploadDir}/${filename}`, req.file.buffer);
+      fileUrl = `/uploads/videos/${filename}`;
+    }
+
+    const id = uuid();
+    const parsedTags = (() => { try { return tags ? JSON.stringify(JSON.parse(tags)) : '[]'; } catch { return JSON.stringify((tags||'').split(',').map(t=>t.trim()).filter(Boolean)); } })();
+    db.prepare('INSERT INTO videos (id,user_id,title,description,file_path,tags,is_public,allow_comments,has_ai_badge,file_size) VALUES (?,?,?,?,?,?,?,?,?,?)').run(
+      id, req.user.id, title, description||null, fileUrl,
+      parsedTags, is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge?1:0, req.file.size
+    );
+    res.status(201).json({ video: fmt(db.prepare('SELECT * FROM videos WHERE id=?').get(id), req.user.id) });
+  } catch(e) {
+    console.error('Upload error:', e.message);
+    res.status(500).json({ error: 'Ошибка загрузки: ' + e.message });
+  }
 });
 
 router.get('/feed', optionalAuth, (req, res) => {
