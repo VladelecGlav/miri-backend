@@ -3,19 +3,42 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuid } from 'uuid';
+import AWS from 'aws-sdk';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-const uploadDir = './uploads/videos';
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname)}`),
+// Yandex Object Storage через aws-sdk v2
+const s3 = new AWS.S3({
+  endpoint: 'https://storage.yandexcloud.net',
+  accessKeyId:     process.env.YC_ACCESS_KEY,
+  secretAccessKey: process.env.YC_SECRET_KEY,
+  region: 'ru-central1',
+  httpOptions: { timeout: 300000 },
+  s3ForcePathStyle: true,
+  signatureVersion: 'v4',
 });
-const upload = multer({ storage, limits: { fileSize: 500*1024*1024 } });
+
+const YC_BUCKET = process.env.YC_BUCKET || 'miri-videos';
+
+async function uploadToYandex(buffer, filename, mimetype) {
+  const key = `videos/${filename}`;
+  await s3.putObject({
+    Bucket: YC_BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: mimetype,
+    ACL: 'public-read',
+  }).promise();
+  return `https://storage.yandexcloud.net/${YC_BUCKET}/${key}`;
+}
+
+// Multer — в память для S3, на диск как fallback
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500*1024*1024 },
+});
 
 async function fmt(v, viewerId) {
   const author = await dbGet('SELECT id,name,handle,avatar_url FROM users WHERE id=$1', [v.user_id]) || {};
@@ -36,8 +59,21 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
   const { title, description, tags, is_public, allow_comments, has_ai_badge } = req.body;
   if (!title) return res.status(400).json({ error: 'Название обязательно' });
   try {
+    const filename = `${uuid()}${path.extname(req.file.originalname)}`;
+    let fileUrl;
+
+    if (process.env.YC_ACCESS_KEY && process.env.YC_SECRET_KEY) {
+      // Загружаем в Yandex Object Storage
+      fileUrl = await uploadToYandex(req.file.buffer, filename, req.file.mimetype);
+    } else {
+      // Fallback — локальный диск
+      const dir = './uploads/videos';
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(`${dir}/${filename}`, req.file.buffer);
+      fileUrl = `/uploads/videos/${filename}`;
+    }
+
     const id = uuid();
-    const fileUrl = `/uploads/videos/${req.file.filename}`;
     const parsedTags = (() => { try { return tags ? JSON.stringify(JSON.parse(tags)) : '[]'; } catch { return JSON.stringify((tags||'').split(',').map(t=>t.trim()).filter(Boolean)); } })();
     await dbRun(
       'INSERT INTO videos (id,user_id,title,description,file_path,tags,is_public,allow_comments,has_ai_badge,file_size) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
@@ -46,7 +82,10 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     );
     const video = await dbGet('SELECT * FROM videos WHERE id=$1', [id]);
     res.status(201).json({ video: await fmt(video, req.user.id) });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) {
+    console.error('Upload error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/feed', optionalAuth, async (req, res) => {
