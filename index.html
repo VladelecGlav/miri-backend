@@ -740,6 +740,86 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
     </div>
   </div>
 
+  <!-- PLANS PAGE -->
+  <div class="page" id="pagePlans">
+    <div style="display:flex;align-items:center;gap:12px;padding:max(env(safe-area-inset-top,44px),16px) 16px 12px;border-bottom:.5px solid rgba(255,255,255,.08);">
+      <div onclick="history.back()||navTo('profile')" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      </div>
+      <div style="font-size:17px;font-weight:700;color:#fff;">Тарифы</div>
+    </div>
+    <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding:16px;">
+      <!-- Balance -->
+      <div style="background:rgba(242,193,46,.06);border:.5px solid rgba(242,193,46,.2);border-radius:16px;padding:16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:32px;">🪙</div>
+        <div>
+          <div style="font-size:22px;font-weight:800;color:#F2C12E;" id="plansTokenBalance">0</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.4);">токенов на счёте</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <div style="font-size:12px;font-weight:700;color:#fff;" id="plansCurrent">Free</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.3);" id="plansExpiry"></div>
+        </div>
+      </div>
+
+      <!-- Free plan -->
+      <div style="background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#fff;">Free</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.3);">50 токенов при регистрации</div>
+          </div>
+          <div style="font-size:20px;font-weight:800;color:rgba(255,255,255,.3);">0₽</div>
+        </div>
+        <div style="font-size:12px;color:rgba(255,255,255,.4);line-height:1.8;">
+          ✦ Текст: DeepSeek, Qwen<br>
+          ✦ Фото: Pollinations, Stable Diffusion<br>
+          ✦ Видео: недоступно<br>
+          ✦ 3 текстовых запроса в час
+        </div>
+      </div>
+
+      <!-- Basic plan -->
+      <div style="background:linear-gradient(135deg,rgba(242,193,46,.08),rgba(242,193,46,.03));border:.5px solid rgba(242,193,46,.3);border-radius:16px;padding:16px;margin-bottom:12px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:10px;right:10px;background:#F2C12E;color:#0b0b0f;font-size:9px;font-weight:800;padding:3px 8px;border-radius:10px;">ПОПУЛЯРНЫЙ</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#fff;">Basic</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.4);">260 токенов/мес</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:22px;font-weight:800;color:#F2C12E;">890₽</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.3);">/месяц</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:rgba(255,255,255,.6);line-height:1.9;margin-bottom:14px;">
+          ✦ Midjourney, Kling, Nano Banana Pro и другие<br>
+          ✦ До <b style="color:#F2C12E;">43 видео</b> в месяц<br>
+          ✦ До <b style="color:#F2C12E;">867 изображений</b> в месяц<br>
+          ✦ До <b style="color:#F2C12E;">130 песен</b> в месяц<br>
+          ✦ Тексты: 10 запросов/час · 60 в сутки<br>
+          ✦ Безлимит Stable Diffusion
+        </div>
+        <button onclick="activatePlan('basic')" id="basicPlanBtn" style="width:100%;height:46px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">
+          Подключить за 890₽/мес
+        </button>
+        <div style="font-size:10px;color:rgba(255,255,255,.2);text-align:center;margin-top:8px;">Тестовый режим — без оплаты</div>
+      </div>
+
+      <!-- Coming soon -->
+      <div style="background:rgba(255,255,255,.02);border:.5px dashed rgba(255,255,255,.08);border-radius:16px;padding:16px;text-align:center;">
+        <div style="font-size:13px;color:rgba(255,255,255,.2);margin-bottom:4px;">Pro и Ultra</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.15);">Скоро · Больше моделей, приоритет, % с трендов</div>
+      </div>
+
+      <!-- History -->
+      <div style="margin-top:20px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:10px;">История токенов</div>
+        <div id="plansHistory" style="font-size:12px;color:rgba(255,255,255,.3);">Загрузка...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- ONBOARDING -->
   <div class="page" id="pageOnboard">
     <div class="orb oa"></div><div class="orb ob"></div>
@@ -861,10 +941,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       <div class="prof-av" id="profAv">М</div>
       <div class="prof-nm" id="profNm">Пользователь</div>
       <div class="prof-hndl" id="profHandle">@miri · Miri</div>
-      <button onclick="openProfEdit()" style="background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.12);border-radius:20px;padding:7px 18px;font-size:13px;color:rgba(255,255,255,.6);font-family:-apple-system,sans-serif;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Редактировать
-      </button>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <button onclick="openProfEdit()" style="background:rgba(255,255,255,.07);border:.5px solid rgba(255,255,255,.12);border-radius:20px;padding:7px 18px;font-size:13px;color:rgba(255,255,255,.6);font-family:-apple-system,sans-serif;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Редактировать
+        </button>
+        <button onclick="navTo('plans')" id="tokenBadgeBtn" style="background:rgba(242,193,46,.1);border:.5px solid rgba(242,193,46,.25);border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;color:#F2C12E;font-family:-apple-system,sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px;">
+          🪙 <span id="profileTokens">0</span>
+        </button>
+      </div>
       <div class="p-stats">
         <div class="pst"><span class="pst-n" id="profStatVids">0</span><span class="pst-l">Видео</span></div>
         <div class="pst"><span class="pst-n" id="profStatFollowers">0</span><span class="pst-l">Подписчики</span></div>
@@ -2319,6 +2404,88 @@ function renderTrendList(containerId, trends) {
     card.onclick = (function(trend){ return function(){ openTrendWizard(trend.id, trend); }; })(t);
     el.appendChild(card);
   });
+}
+
+// ── BILLING / PLANS ──────────────────────────────────────
+let userBilling = null;
+
+async function loadBilling() {
+  if (!API_TOKEN) return;
+  try {
+    const res = await api('GET', '/api/billing/me');
+    if (res.ok) {
+      userBilling = res.data;
+      // Обновляем значок токенов
+      const el = document.getElementById('profileTokens');
+      if (el) el.textContent = res.data.balance + ' токенов';
+      // Обновляем страницу тарифов если открыта
+      updatePlansPage();
+    }
+  } catch(e) {}
+}
+
+function updatePlansPage() {
+  if (!userBilling) return;
+  const balEl = document.getElementById('plansTokenBalance');
+  const curEl = document.getElementById('plansCurrent');
+  const expEl = document.getElementById('plansExpiry');
+  if (balEl) balEl.textContent = userBilling.balance;
+  if (curEl) curEl.textContent = userBilling.plan_name || 'Free';
+  if (expEl && userBilling.expires_at) {
+    const d = new Date(userBilling.expires_at);
+    expEl.textContent = 'до ' + d.toLocaleDateString('ru-RU');
+  }
+
+  // Загружаем историю
+  loadTokenHistory();
+
+  // Обновляем кнопку Basic
+  const btn = document.getElementById('basicPlanBtn');
+  if (btn && userBilling.plan === 'basic') {
+    btn.textContent = '✓ Активен';
+    btn.style.background = 'rgba(74,222,128,.15)';
+    btn.style.color = '#4ade80';
+    btn.disabled = true;
+  }
+}
+
+async function loadTokenHistory() {
+  const el = document.getElementById('plansHistory');
+  if (!el) return;
+  try {
+    const res = await api('GET', '/api/billing/transactions');
+    if (res.ok && res.data.transactions.length > 0) {
+      el.innerHTML = res.data.transactions.slice(0,10).map(function(t) {
+        const isPos = t.amount > 0;
+        const d = new Date(t.created_at).toLocaleDateString('ru-RU');
+        return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid rgba(255,255,255,.05);">' +
+          '<div>' +
+            '<div style="font-size:12px;color:rgba(255,255,255,.6);">' + (t.description || t.type) + '</div>' +
+            '<div style="font-size:10px;color:rgba(255,255,255,.25);">' + d + '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;font-weight:700;color:' + (isPos ? '#4ade80' : '#F2C12E') + ';">' +
+            (isPos ? '+' : '') + t.amount + ' 🪙' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    } else {
+      el.textContent = 'История пуста';
+    }
+  } catch(e) { el.textContent = 'Ошибка загрузки'; }
+}
+
+async function activatePlan(plan) {
+  const btn = document.getElementById('basicPlanBtn');
+  if (btn) { btn.textContent = '⏳ Активация...'; btn.disabled = true; }
+  const res = await api('POST', '/api/billing/activate', { plan });
+  if (res.ok) {
+    showFeedHint('✅ Тариф Basic активирован!');
+    await loadBilling();
+    updatePlansPage();
+  } else {
+    showFeedHint(res.data?.error || 'Ошибка активации');
+    if (btn) { btn.textContent = 'Подключить за 890₽/мес'; btn.disabled = false; }
+  }
 }
 
 // ── TREND WIZARD ─────────────────────────────────────────
@@ -5230,7 +5397,7 @@ function navTo(page){
     } catch(e) {}
   }
 
-  const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile'};
+  const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile',plans:'pagePlans'};
   showPage(map[page]);
   if(page==='feed'){
     // Stop any profile videos

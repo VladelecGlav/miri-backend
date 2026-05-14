@@ -85,6 +85,33 @@ export async function migrate() {
     );
     CREATE INDEX IF NOT EXISTS idx_trends_official ON trends(is_official);
     CREATE INDEX IF NOT EXISTS idx_trends_user ON trends(user_id);
+
+    -- Подписки и токены
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id              TEXT PRIMARY KEY,
+      user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      plan            TEXT NOT NULL DEFAULT 'free',
+      expires_at      TIMESTAMPTZ,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS token_balance (
+      user_id         TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      balance         INTEGER NOT NULL DEFAULT 50,
+      updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS token_transactions (
+      id              TEXT PRIMARY KEY,
+      user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      amount          INTEGER NOT NULL,
+      type            TEXT NOT NULL,
+      description     TEXT,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_subs_user ON subscriptions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_tokens_user ON token_transactions(user_id);
   `);
   console.log('✅ Neon PostgreSQL ready');
 }
