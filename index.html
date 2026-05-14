@@ -5434,6 +5434,33 @@ function logout() {
 // ── NAV ──────────────────────────────────────────────────
 let _skipFeedReload = false; // флаг для открытия видео из профиля
 
+// ── WAKE LOCK ────────────────────────────────────────────
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+    } catch(e) {}
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
+// Переактивируем wake lock если страница снова активна
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && document.getElementById('pageFeed')?.classList.contains('active')) {
+    requestWakeLock();
+  } else {
+    releaseWakeLock();
+  }
+});
+
 function navTo(page){
   // Pause ALL videos when leaving feed
   if (page !== 'feed') {
@@ -5442,6 +5469,7 @@ function navTo(page){
       const allVids = document.querySelectorAll('#reelTrack video');
       allVids.forEach(v => { v.pause(); v.currentTime = 0; });
     } catch(e) {}
+    releaseWakeLock();
   }
 
   const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile',plans:'pagePlans'};
@@ -5458,6 +5486,7 @@ function navTo(page){
       buildFeed();
       loadUserFeed();
     }
+    requestWakeLock();
   }
   else if(page==='upload'){resetUploadForm();}
   else if(page==='create'){renderCreate();}
