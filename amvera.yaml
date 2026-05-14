@@ -4,7 +4,7 @@ meta:
     name: npm
     version: "22"
 build:
-  skip: true
+  skip: false
   additionalCommands: null
   artifacts:
     "*": /
