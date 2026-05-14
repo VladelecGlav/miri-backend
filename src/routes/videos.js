@@ -37,13 +37,11 @@ async function uploadToR2(buffer, filename, mimetype) {
     `x-amz-date:${time}
 `;
   const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
-  const canonicalRequest = ['PUT', `/${R2_BUCKET}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('
-');
+  const canonicalRequest = ['PUT', `/${R2_BUCKET}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
 
   const region = 'auto';
   const credScope = `${date}/${region}/s3/aws4_request`;
-  const strToSign = ['AWS4-HMAC-SHA256', time, credScope, sha256(canonicalRequest)].join('
-');
+  const strToSign = ['AWS4-HMAC-SHA256', time, credScope, sha256(canonicalRequest)].join('\n');
   const signingKey = sign(sign(sign(sign(`AWS4${R2_SECRET_KEY}`, date), region), 's3'), 'aws4_request');
   const signature = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
 
