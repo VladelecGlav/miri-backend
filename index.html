@@ -657,7 +657,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
 .nb-upload-ico::before{content:'';position:absolute;inset:-2px;border-radius:11px;background:linear-gradient(135deg,#d4a800,#F2C12E);z-index:-1;}
 .nb-upload-btn{opacity:1 !important;}
 </style>
-  <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"></script>
 </head>
 <body>
 <div id="app">
@@ -805,8 +804,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
           Подключить за 890₽/мес
         </button>
         <div style="display:flex;gap:6px;justify-content:center;margin-top:10px;">
-          <img src="https://yookassa.ru/files/home/logo-main.svg" style="height:16px;opacity:.4;" onerror="this.style.display='none'">
-          <span style="font-size:10px;color:rgba(255,255,255,.2);">Оплата через ЮKassa · МИР · СБП · Visa</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.2);">МИР · СБП · Visa · Mastercard</span>
         </div>
       </div>
 
@@ -2509,6 +2507,17 @@ async function buyPackage(packageId) {
   if (btn && packageId === 'basic_monthly') { btn.textContent = '⏳ Загрузка...'; btn.disabled = true; }
 
   try {
+    // Загружаем CloudPayments виджет динамически
+    if (!window.cp) {
+      await new Promise(function(resolve, reject) {
+        const s = document.createElement('script');
+        s.src = 'https://widget.cloudpayments.ru/bundles/cloudpayments.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
     const res = await api('POST', '/api/payments/create', { package_id: packageId });
     if (!res.ok) {
       showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
