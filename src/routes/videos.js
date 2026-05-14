@@ -29,10 +29,11 @@ async function uploadToSelectel(buffer, filename, mimetype) {
   const canonicalHeaders = [
     'content-type:' + mimetype,
     'host:' + host,
+    'x-amz-acl:public-read',
     'x-amz-content-sha256:' + payloadHash,
     'x-amz-date:' + time,
   ].join('\n') + '\n';
-  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+  const signedHeaders = 'content-type;host;x-amz-acl;x-amz-content-sha256;x-amz-date';
 
   const canonicalRequest = [
     'PUT', '/' + key, '',
@@ -54,6 +55,7 @@ async function uploadToSelectel(buffer, filename, mimetype) {
       'Authorization':        authHeader,
       'Content-Type':         mimetype,
       'Content-Length':       String(buffer.length),
+      'x-amz-acl':            'public-read',
       'x-amz-content-sha256': payloadHash,
       'x-amz-date':           time,
     },
