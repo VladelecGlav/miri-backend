@@ -657,6 +657,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
 .nb-upload-ico::before{content:'';position:absolute;inset:-2px;border-radius:11px;background:linear-gradient(135deg,#d4a800,#F2C12E);z-index:-1;}
 .nb-upload-btn{opacity:1 !important;}
 </style>
+  <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"></script>
 </head>
 <body>
 <div id="app">
@@ -2503,15 +2504,50 @@ async function loadTokenHistory() {
 }
 
 async function buyPackage(packageId) {
-  if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); navTo('auth'); return; }
+  if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); return; }
   const btn = document.getElementById('basicPlanBtn');
-  if (btn && packageId === 'basic_monthly') { btn.textContent = '⏳ Создаём платёж...'; btn.disabled = true; }
+  if (btn && packageId === 'basic_monthly') { btn.textContent = '⏳ Загрузка...'; btn.disabled = true; }
 
-  const res = await api('POST', '/api/payments/create', { package_id: packageId });
-  if (res.ok && res.data.confirmation_url) {
-    window.location.href = res.data.confirmation_url;
-  } else {
-    showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+  try {
+    const res = await api('POST', '/api/payments/create', { package_id: packageId });
+    if (!res.ok) {
+      showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+      if (btn) { btn.textContent = 'Подключить за 890₽/мес'; btn.disabled = false; }
+      return;
+    }
+
+    const d = res.data;
+    const widget = new cp.CloudPayments();
+    widget.pay('charge', {
+      publicId:    d.public_id,
+      description: d.description,
+      amount:      d.amount,
+      currency:    d.currency,
+      accountId:   d.user_id,
+      invoiceId:   d.invoice_id,
+      email:       d.email,
+      data: JSON.stringify({
+        user_id:    d.user_id,
+        package_id: d.package_id,
+      }),
+    }, {
+      onSuccess: async function(options) {
+        showFeedHint('✅ Оплата прошла! Токены начислены');
+        await loadBilling();
+        if (btn) { btn.textContent = '✓ Активен'; btn.style.background = 'rgba(74,222,128,.15)'; btn.style.color = '#4ade80'; }
+      },
+      onFail: function(reason, options) {
+        showFeedHint('Оплата не прошла: ' + (reason || 'попробуй снова'));
+        if (btn) { btn.textContent = 'Подключить за 890₽/мес'; btn.disabled = false; }
+      },
+      onComplete: function(paymentResult, options) {
+        if (btn && btn.disabled) { btn.disabled = false; }
+      },
+    });
+
+    if (btn) { btn.textContent = 'Подключить за 890₽/мес'; btn.disabled = false; }
+  } catch(e) {
+    showFeedHint('Ошибка: ' + e.message);
     if (btn) { btn.textContent = 'Подключить за 890₽/мес'; btn.disabled = false; }
   }
 }
