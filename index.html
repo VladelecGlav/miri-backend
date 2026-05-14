@@ -1483,8 +1483,15 @@ async function goOnboard(name, user) {
   }
 }
 
-async function loadUserFeed() {
-  const res = await api('GET', '/api/videos/feed?limit=50');
+let feedCurrentPage = 1;
+let feedLoading = false;
+let feedHasMore = true;
+
+async function loadUserFeed(page = 1) {
+  if (feedLoading) return;
+  feedLoading = true;
+  const res = await api('GET', '/api/videos/feed?limit=20&page=' + page);
+  feedLoading = false;
   if (res.ok && res.data.videos) {
     const serverVids = res.data.videos.map(v => ({
       t: v.title,
@@ -1499,16 +1506,33 @@ async function loadUserFeed() {
       fileUrl: v.file_url ? (v.file_url.startsWith('http') ? v.file_url : API_URL + v.file_url) : null,
       _serverVideo: v,
     }));
-    if (serverVids.length > 0) {
-      // Replace demo videos with real ones + keep demos at end if few real
-      serverVideos = serverVids.length >= 3
-        ? serverVids
-        : [...serverVids, ...VIDS.slice(0, 3 - serverVids.length)];
+    const pagination = res.data.pagination || {};
+    feedHasMore = page < (pagination.pages || 1);
+    feedCurrentPage = page;
+
+    if (page === 1) {
+      if (serverVids.length > 0) {
+        serverVideos = serverVids.length >= 3
+          ? serverVids
+          : [...serverVids, ...VIDS.slice(0, 3 - serverVids.length)];
+      } else {
+        serverVideos = VIDS;
+      }
+      buildFeed();
     } else {
-      serverVideos = VIDS; // fallback to demo
+      // Добавляем новые видео в конец ленты
+      if (serverVids.length > 0) {
+        serverVideos = [...(serverVideos || []), ...serverVids];
+        buildFeed();
+        fGoTo(fCur, false); // остаёмся на текущем
+      }
     }
-    buildFeed();
   }
+}
+
+async function loadMoreVideos() {
+  if (!feedHasMore || feedLoading) return;
+  await loadUserFeed(feedCurrentPage + 1);
 }
 
 let serverVideos = null;
