@@ -24,23 +24,26 @@ function generatePresignedUrl(filename, mimetype, expiresIn = 3600) {
   const time   = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
 
   const sign   = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
-  const sha256 = d => crypto.createHash('sha256').update(d).digest('hex');
+  const sha256 = d => crypto.createHash('sha256').update(typeof d === 'string' ? d : d).digest('hex');
 
   const credScope  = date + '/' + S3_REGION + '/s3/aws4_request';
   const credential = S3_ACCESS_KEY + '/' + credScope;
 
-  const queryParams = new URLSearchParams({
-    'X-Amz-Algorithm':     'AWS4-HMAC-SHA256',
-    'X-Amz-Credential':    credential,
-    'X-Amz-Date':          time,
-    'X-Amz-Expires':       String(expiresIn),
-    'X-Amz-SignedHeaders': 'host',
-  });
+  // Сортируем параметры в алфавитном порядке как требует AWS4
+  const params = [
+    ['X-Amz-Algorithm',     'AWS4-HMAC-SHA256'],
+    ['X-Amz-Credential',    credential],
+    ['X-Amz-Date',          time],
+    ['X-Amz-Expires',       String(expiresIn)],
+    ['X-Amz-SignedHeaders', 'host'],
+  ].sort((a, b) => a[0].localeCompare(b[0]));
+
+  const queryString = params.map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');
 
   const canonicalRequest = [
     'PUT',
     '/' + key,
-    queryParams.toString(),
+    queryString,
     'host:' + host + '\n',
     'host',
     'UNSIGNED-PAYLOAD',
@@ -50,10 +53,10 @@ function generatePresignedUrl(filename, mimetype, expiresIn = 3600) {
   const signingKey = sign(sign(sign(sign('AWS4' + S3_SECRET_KEY, date), S3_REGION), 's3'), 'aws4_request');
   const signature  = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
 
-  queryParams.append('X-Amz-Signature', signature);
+  const finalQuery = queryString + '&X-Amz-Signature=' + signature;
 
   return {
-    uploadUrl: 'https://' + host + '/' + key + '?' + queryParams.toString(),
+    uploadUrl: 'https://' + host + '/' + key + '?' + finalQuery,
     publicUrl: 'https://' + host + '/' + key,
   };
 }
