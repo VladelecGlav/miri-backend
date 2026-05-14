@@ -1,8 +1,18 @@
 meta:
   environment: nodejs
-  toolVersion: "22"
+  toolchain:
+    name: npm
+    version: "22"
 build:
-  npmInstall: true
+  skip: true
+  additionalCommands: null
+  artifacts:
+    "*": /
 run:
+  scriptName: null
+  scriptArguments: null
+  nodeArguments: null
+  command: npm run start
   persistenceMount: /data
-  command: node src/index.js
+  containerPort: "3000"
+  servicePort: "80"
