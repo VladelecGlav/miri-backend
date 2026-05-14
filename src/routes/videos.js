@@ -9,65 +9,63 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// ── Cloudflare R2 ────────────────────────────────────────
-const R2_ENDPOINT   = process.env.R2_ENDPOINT   || '';
-const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY || '';
-const R2_SECRET_KEY = process.env.R2_SECRET_KEY || '';
-const R2_BUCKET     = process.env.R2_BUCKET     || 'miri-videos';
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || '';
+// ── Selectel S3 ──────────────────────────────────────────
+const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '';
+const S3_SECRET_KEY = process.env.S3_SECRET_KEY || '';
+const S3_BUCKET     = process.env.S3_BUCKET     || 'miri-videos';
+const S3_REGION     = process.env.S3_REGION     || 'ru-7';
 
-async function uploadToR2(buffer, filename, mimetype) {
-  const key  = `videos/${filename}`;
-  const host = new URL(R2_ENDPOINT).host;
+async function uploadToSelectel(buffer, filename, mimetype) {
+  const key  = 'videos/' + filename;
+  const host = S3_BUCKET + '.s3.' + S3_REGION + '.storage.selcloud.ru';
   const now  = new Date();
   const date = now.toISOString().slice(0,10).replace(/-/g,'');
   const time = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
 
-  const sign = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
+  const sign   = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
   const sha256 = d => crypto.createHash('sha256').update(d).digest('hex');
 
   const payloadHash = sha256(buffer);
-  const canonicalHeaders =
-    `content-type:${mimetype}
-` +
-    `host:${host}
-` +
-    `x-amz-content-sha256:${payloadHash}
-` +
-    `x-amz-date:${time}
-`;
+  const canonicalHeaders = [
+    'content-type:' + mimetype,
+    'host:' + host,
+    'x-amz-content-sha256:' + payloadHash,
+    'x-amz-date:' + time,
+  ].join('\n') + '\n';
   const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
-  const canonicalRequest = ['PUT', `/${R2_BUCKET}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
 
-  const region = 'auto';
-  const credScope = `${date}/${region}/s3/aws4_request`;
-  const strToSign = ['AWS4-HMAC-SHA256', time, credScope, sha256(canonicalRequest)].join('\n');
-  const signingKey = sign(sign(sign(sign(`AWS4${R2_SECRET_KEY}`, date), region), 's3'), 'aws4_request');
-  const signature = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
+  const canonicalRequest = [
+    'PUT', '/' + key, '',
+    canonicalHeaders, signedHeaders, payloadHash,
+  ].join('\n');
 
-  const authHeader = `AWS4-HMAC-SHA256 Credential=${R2_ACCESS_KEY}/${credScope},SignedHeaders=${signedHeaders},Signature=${signature}`;
-  const url = `${R2_ENDPOINT}/${R2_BUCKET}/${key}`;
+  const credScope  = date + '/' + S3_REGION + '/s3/aws4_request';
+  const strToSign  = ['AWS4-HMAC-SHA256', time, credScope, sha256(canonicalRequest)].join('\n');
+  const signingKey = sign(sign(sign(sign('AWS4' + S3_SECRET_KEY, date), S3_REGION), 's3'), 'aws4_request');
+  const signature  = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
 
+  const authHeader = 'AWS4-HMAC-SHA256 Credential=' + S3_ACCESS_KEY + '/' + credScope +
+    ',SignedHeaders=' + signedHeaders + ',Signature=' + signature;
+
+  const url = 'https://' + host + '/' + key;
   const resp = await fetch(url, {
     method: 'PUT',
     headers: {
-      'Authorization': authHeader,
-      'Content-Type': mimetype,
-      'Content-Length': String(buffer.length),
+      'Authorization':        authHeader,
+      'Content-Type':         mimetype,
+      'Content-Length':       String(buffer.length),
       'x-amz-content-sha256': payloadHash,
-      'x-amz-date': time,
+      'x-amz-date':           time,
     },
     body: buffer,
   });
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`R2 upload error ${resp.status}: ${text}`);
+    throw new Error('Selectel S3 ' + resp.status + ': ' + text);
   }
 
-  // Публичный URL
-  const publicBase = R2_PUBLIC_URL || `${R2_ENDPOINT}/${R2_BUCKET}`;
-  return `${publicBase}/${key}`;
+  return 'https://' + host + '/' + key;
 }
 
 // Multer — в память для R2, на диск как fallback
@@ -98,10 +96,10 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     let fileUrl;
     const filename = `${uuid()}${path.extname(req.file.originalname)}`;
 
-    if (R2_ENDPOINT && R2_ACCESS_KEY && R2_SECRET_KEY) {
-      // Загружаем в Cloudflare R2
-      fileUrl = await uploadToR2(req.file.buffer, filename, req.file.mimetype);
-      console.log('✅ Uploaded to R2:', fileUrl);
+    if (S3_ACCESS_KEY && S3_SECRET_KEY) {
+      // Загружаем в Selectel S3
+      fileUrl = await uploadToSelectel(req.file.buffer, filename, req.file.mimetype);
+      console.log('✅ Uploaded to Selectel:', fileUrl);
     } else {
       // Fallback — локальный диск
       const dir = './uploads/videos';
