@@ -3572,79 +3572,45 @@ async function upStart(){
       if (s) s.textContent = stage;
     };
 
-    updateUI(5, 'Подготовка файла...');
+    updateUI(10, 'Загрузка...');
 
-    try {
-      var fileUrl = null;
-      var mimetype = upRealFile.type || 'video/mp4';
-      var fname = upRealFileName || 'video.mp4';
+    const fd = new FormData();
+    fd.append('video', upRealFile, upRealFileName || 'video.mp4');
+    fd.append('title', title);
+    fd.append('tags', tags);
+    fd.append('is_public', isPublic ? 'true' : 'false');
+    fd.append('has_ai_badge', 'true');
 
-      // Получаем presigned URL для прямой загрузки в Selectel
-      updateUI(10, 'Получаем адрес хранилища...');
-      var presignRes = await api('GET', '/api/videos/presign?filename=' + encodeURIComponent(fname) + '&mimetype=' + encodeURIComponent(mimetype));
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API_URL + '/api/videos/upload');
+    if (API_TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + API_TOKEN);
 
-      if (presignRes.ok && presignRes.data.uploadUrl) {
-        updateUI(15, 'Загрузка в хранилище...');
-
-        await new Promise(function(resolve, reject) {
-          var xhr = new XMLHttpRequest();
-          xhr.open('PUT', presignRes.data.uploadUrl);
-          xhr.upload.onprogress = function(e) {
-            if (e.lengthComputable) {
-              var pct = Math.round((e.loaded / e.total) * 75) + 15;
-              updateUI(pct, pct < 50 ? 'Загрузка...' : pct < 80 ? 'Почти готово...' : 'Завершаем...');
-            }
-          };
-          xhr.onload = function() {
-            if (xhr.status < 300) resolve();
-            else reject(new Error('Ошибка хранилища: ' + xhr.status + ' ' + xhr.responseText));
-          };
-          xhr.onerror = function() { reject(new Error('Нет соединения с хранилищем')); };
-          xhr.send(upRealFile);
-        });
-
-        fileUrl = presignRes.data.publicUrl;
-        updateUI(92, 'Сохраняем...');
+    xhr.upload.onprogress = function(e) {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 80) + 10;
+        updateUI(pct, pct < 50 ? 'Загрузка...' : pct < 80 ? 'Обработка...' : 'Сохраняем...');
       }
+    };
 
-      // Регистрируем в БД
-      var fd = new FormData();
-      if (fileUrl) {
-        fd.append('file_url', fileUrl);
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        updateUI(100, 'Готово!');
+        try { upLastVideoId = JSON.parse(xhr.responseText).video?.id || null; } catch(e) {}
+        setTimeout(upDone, 400);
       } else {
-        updateUI(20, 'Загрузка на сервер...');
-        fd.append('video', upRealFile, fname);
-      }
-      fd.append('title', title);
-      fd.append('tags', tags);
-      fd.append('is_public', isPublic ? 'true' : 'false');
-      fd.append('has_ai_badge', 'true');
-
-      var xhr2 = new XMLHttpRequest();
-      xhr2.open('POST', API_URL + '/api/videos/upload');
-      if (API_TOKEN) xhr2.setRequestHeader('Authorization', 'Bearer ' + API_TOKEN);
-      xhr2.onload = function() {
-        if (xhr2.status >= 200 && xhr2.status < 300) {
-          updateUI(100, 'Готово!');
-          try { upLastVideoId = JSON.parse(xhr2.responseText).video?.id || null; } catch(e) {}
-          setTimeout(upDone, 400);
-        } else {
-          var errMsg = 'Ошибка загрузки';
-          try { errMsg = JSON.parse(xhr2.responseText).error || errMsg; } catch(e) {}
-          document.getElementById('upTitle').textContent = 'Ошибка';
-          document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">⚠️</div><div style="font-size:16px;color:#fff;margin:12px 0;">' + errMsg + '</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
-        }
-      };
-      xhr2.onerror = function() {
+        let errMsg = 'Ошибка загрузки';
+        try { errMsg = JSON.parse(xhr.responseText).error || errMsg; } catch(e) {}
         document.getElementById('upTitle').textContent = 'Ошибка';
-        document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">📡</div><div style="font-size:16px;color:#fff;margin:12px 0;">Нет связи</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
-      };
-      xhr2.send(fd);
+        document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">⚠️</div><div style="font-size:16px;color:#fff;margin:12px 0;">' + errMsg + '</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
+      }
+    };
 
-    } catch(uploadErr) {
+    xhr.onerror = function() {
       document.getElementById('upTitle').textContent = 'Ошибка';
-      document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">⚠️</div><div style="font-size:16px;color:#fff;margin:12px 0;">' + uploadErr.message + '</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
-    }
+      document.getElementById('upBody').innerHTML = '<div style="padding:40px 24px;text-align:center;"><div style="font-size:32px;">📡</div><div style="font-size:16px;color:#fff;margin:12px 0;">Нет связи с сервером</div><button onclick="renderUpForm()" style="padding:12px 24px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;">Попробовать снова</button></div>';
+    };
+
+    xhr.send(fd);
 
   } else {
     // No real file — simulate
