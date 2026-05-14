@@ -18,6 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 await migrate();
 
 const app = express();
+app.set('trust proxy', 1); // Railway uses reverse proxy
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
