@@ -15,65 +15,64 @@ const S3_SECRET_KEY = process.env.S3_SECRET_KEY || '';
 const S3_BUCKET     = process.env.S3_BUCKET     || 'miri-videos';
 const S3_REGION     = process.env.S3_REGION     || 'ru-7';
 
-async function uploadToSelectel(buffer, filename, mimetype) {
-  const key  = 'videos/' + filename;
-  const host = S3_BUCKET + '.s3.' + S3_REGION + '.storage.selcloud.ru';
-  const now  = new Date();
-  const date = now.toISOString().slice(0,10).replace(/-/g,'');
-  const time = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
+// Генерация presigned URL для прямой загрузки с браузера
+function generatePresignedUrl(filename, mimetype, expiresIn = 3600) {
+  const key    = 'videos/' + filename;
+  const host   = S3_BUCKET + '.s3.' + S3_REGION + '.storage.selcloud.ru';
+  const now    = new Date();
+  const date   = now.toISOString().slice(0,10).replace(/-/g,'');
+  const time   = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
 
   const sign   = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
   const sha256 = d => crypto.createHash('sha256').update(d).digest('hex');
 
-  const payloadHash = sha256(buffer);
-  const canonicalHeaders = [
-    'content-type:' + mimetype,
-    'host:' + host,
-    'x-amz-acl:public-read',
-    'x-amz-content-sha256:' + payloadHash,
-    'x-amz-date:' + time,
-  ].join('\n') + '\n';
-  const signedHeaders = 'content-type;host;x-amz-acl;x-amz-content-sha256;x-amz-date';
+  const credScope  = date + '/' + S3_REGION + '/s3/aws4_request';
+  const credential = S3_ACCESS_KEY + '/' + credScope;
+
+  const queryParams = new URLSearchParams({
+    'X-Amz-Algorithm':     'AWS4-HMAC-SHA256',
+    'X-Amz-Credential':    credential,
+    'X-Amz-Date':          time,
+    'X-Amz-Expires':       String(expiresIn),
+    'X-Amz-SignedHeaders': 'content-type;host;x-amz-acl',
+  });
 
   const canonicalRequest = [
-    'PUT', '/' + key, '',
-    canonicalHeaders, signedHeaders, payloadHash,
+    'PUT',
+    '/' + key,
+    queryParams.toString(),
+    'content-type:' + mimetype + '\n' + 'host:' + host + '\n' + 'x-amz-acl:public-read\n',
+    'content-type;host;x-amz-acl',
+    'UNSIGNED-PAYLOAD',
   ].join('\n');
 
-  const credScope  = date + '/' + S3_REGION + '/s3/aws4_request';
   const strToSign  = ['AWS4-HMAC-SHA256', time, credScope, sha256(canonicalRequest)].join('\n');
   const signingKey = sign(sign(sign(sign('AWS4' + S3_SECRET_KEY, date), S3_REGION), 's3'), 'aws4_request');
   const signature  = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
 
-  const authHeader = 'AWS4-HMAC-SHA256 Credential=' + S3_ACCESS_KEY + '/' + credScope +
-    ',SignedHeaders=' + signedHeaders + ',Signature=' + signature;
+  queryParams.append('X-Amz-Signature', signature);
 
-  const url = 'https://' + host + '/' + key;
-  const resp = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Authorization':        authHeader,
-      'Content-Type':         mimetype,
-      'Content-Length':       String(buffer.length),
-      'x-amz-acl':            'public-read',
-      'x-amz-content-sha256': payloadHash,
-      'x-amz-date':           time,
-    },
-    body: buffer,
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error('Selectel S3 ' + resp.status + ': ' + text);
-  }
-
-  return 'https://' + host + '/' + key;
+  return {
+    uploadUrl: 'https://' + host + '/' + key + '?' + queryParams.toString(),
+    publicUrl: 'https://' + host + '/' + key,
+  };
 }
 
 // Multer — в память для R2, на диск как fallback
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 500*1024*1024 },
+});
+
+// GET /api/videos/presign
+router.get('/presign', authenticate, (req, res) => {
+  const { filename, mimetype } = req.query;
+  if (!filename || !mimetype) return res.status(400).json({ error: 'filename и mimetype обязательны' });
+  if (!S3_ACCESS_KEY || !S3_SECRET_KEY) return res.status(400).json({ error: 'S3 не настроен' });
+  const ext = filename.includes('.') ? '.' + filename.split('.').pop() : '.mp4';
+  const newFilename = uuid() + ext;
+  const result = generatePresignedUrl(newFilename, mimetype);
+  res.json({ uploadUrl: result.uploadUrl, publicUrl: result.publicUrl, filename: newFilename });
 });
 
 async function fmt(v, viewerId) {
@@ -91,23 +90,25 @@ async function fmt(v, viewerId) {
 }
 
 router.post('/upload', authenticate, upload.single('video'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Файл не загружен' });
-  const { title, description, tags, is_public, allow_comments, has_ai_badge } = req.body;
+  const { title, description, tags, is_public, allow_comments, has_ai_badge, file_url } = req.body;
   if (!title) return res.status(400).json({ error: 'Название обязательно' });
+  if (!file_url && !req.file) return res.status(400).json({ error: 'Файл не загружен' });
+
   try {
     let fileUrl;
-    const filename = `${uuid()}${path.extname(req.file.originalname)}`;
+    let fileSize = 0;
 
-    if (S3_ACCESS_KEY && S3_SECRET_KEY) {
-      // Загружаем в Selectel S3
-      fileUrl = await uploadToSelectel(req.file.buffer, filename, req.file.mimetype);
-      console.log('✅ Uploaded to Selectel:', fileUrl);
+    if (file_url) {
+      // Видео уже загружено напрямую в S3 с браузера
+      fileUrl = file_url;
     } else {
       // Fallback — локальный диск
+      const filename = uuid() + path.extname(req.file.originalname);
       const dir = './uploads/videos';
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(`${dir}/${filename}`, req.file.buffer);
-      fileUrl = `/uploads/videos/${filename}`;
+      fs.writeFileSync(dir + '/' + filename, req.file.buffer);
+      fileUrl = '/uploads/videos/' + filename;
+      fileSize = req.file.size;
     }
 
     const id = uuid();
@@ -115,9 +116,10 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     await dbRun(
       'INSERT INTO videos (id,user_id,title,description,file_path,tags,is_public,allow_comments,has_ai_badge,file_size) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
       [id, req.user.id, title, description||null, fileUrl, parsedTags,
-       is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge?1:0, req.file.size]
+       is_public!=='false'?1:0, allow_comments!=='false'?1:0, has_ai_badge?1:0, fileSize]
     );
     const video = await dbGet('SELECT * FROM videos WHERE id=$1', [id]);
+    console.log('✅ Video saved:', fileUrl);
     res.status(201).json({ video: await fmt(video, req.user.id) });
   } catch(e) {
     console.error('Upload error:', e.message);
