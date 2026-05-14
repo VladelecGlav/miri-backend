@@ -2,20 +2,81 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { v4 as uuid } from 'uuid';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-const uploadDir = './uploads/videos';
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+// ── Cloudflare R2 ────────────────────────────────────────
+const R2_ENDPOINT   = process.env.R2_ENDPOINT   || '';
+const R2_ACCESS_KEY = process.env.R2_ACCESS_KEY || '';
+const R2_SECRET_KEY = process.env.R2_SECRET_KEY || '';
+const R2_BUCKET     = process.env.R2_BUCKET     || 'miri-videos';
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || '';
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname)}`),
+async function uploadToR2(buffer, filename, mimetype) {
+  const key  = `videos/${filename}`;
+  const host = new URL(R2_ENDPOINT).host;
+  const now  = new Date();
+  const date = now.toISOString().slice(0,10).replace(/-/g,'');
+  const time = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
+
+  const sign = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
+  const sha256 = d => crypto.createHash('sha256').update(d).digest('hex');
+
+  const payloadHash = sha256(buffer);
+  const canonicalHeaders =
+    `content-type:${mimetype}
+` +
+    `host:${host}
+` +
+    `x-amz-content-sha256:${payloadHash}
+` +
+    `x-amz-date:${time}
+`;
+  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+  const canonicalRequest = ['PUT', `/${R2_BUCKET}/${key}`, '', canonicalHeaders, signedHeaders, payloadHash].join('
+');
+
+  const region = 'auto';
+  const credScope = `${date}/${region}/s3/aws4_request`;
+  const strToSign = ['AWS4-HMAC-SHA256', time, credScope, sha256(canonicalRequest)].join('
+');
+  const signingKey = sign(sign(sign(sign(`AWS4${R2_SECRET_KEY}`, date), region), 's3'), 'aws4_request');
+  const signature = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
+
+  const authHeader = `AWS4-HMAC-SHA256 Credential=${R2_ACCESS_KEY}/${credScope},SignedHeaders=${signedHeaders},Signature=${signature}`;
+  const url = `${R2_ENDPOINT}/${R2_BUCKET}/${key}`;
+
+  const resp = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': authHeader,
+      'Content-Type': mimetype,
+      'Content-Length': String(buffer.length),
+      'x-amz-content-sha256': payloadHash,
+      'x-amz-date': time,
+    },
+    body: buffer,
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`R2 upload error ${resp.status}: ${text}`);
+  }
+
+  // Публичный URL
+  const publicBase = R2_PUBLIC_URL || `${R2_ENDPOINT}/${R2_BUCKET}`;
+  return `${publicBase}/${key}`;
+}
+
+// Multer — в память для R2, на диск как fallback
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500*1024*1024 },
 });
-const upload = multer({ storage, limits: { fileSize: 500*1024*1024 } });
 
 async function fmt(v, viewerId) {
   const author = await dbGet('SELECT id,name,handle,avatar_url FROM users WHERE id=$1', [v.user_id]) || {};
@@ -36,8 +97,22 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
   const { title, description, tags, is_public, allow_comments, has_ai_badge } = req.body;
   if (!title) return res.status(400).json({ error: 'Название обязательно' });
   try {
+    let fileUrl;
+    const filename = `${uuid()}${path.extname(req.file.originalname)}`;
+
+    if (R2_ENDPOINT && R2_ACCESS_KEY && R2_SECRET_KEY) {
+      // Загружаем в Cloudflare R2
+      fileUrl = await uploadToR2(req.file.buffer, filename, req.file.mimetype);
+      console.log('✅ Uploaded to R2:', fileUrl);
+    } else {
+      // Fallback — локальный диск
+      const dir = './uploads/videos';
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(`${dir}/${filename}`, req.file.buffer);
+      fileUrl = `/uploads/videos/${filename}`;
+    }
+
     const id = uuid();
-    const fileUrl = `/uploads/videos/${req.file.filename}`;
     const parsedTags = (() => { try { return tags ? JSON.stringify(JSON.parse(tags)) : '[]'; } catch { return JSON.stringify((tags||'').split(',').map(t=>t.trim()).filter(Boolean)); } })();
     await dbRun(
       'INSERT INTO videos (id,user_id,title,description,file_path,tags,is_public,allow_comments,has_ai_badge,file_size) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
@@ -46,7 +121,10 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     );
     const video = await dbGet('SELECT * FROM videos WHERE id=$1', [id]);
     res.status(201).json({ video: await fmt(video, req.user.id) });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) {
+    console.error('Upload error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/feed', optionalAuth, async (req, res) => {
