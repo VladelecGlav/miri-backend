@@ -1691,6 +1691,7 @@ function buildFeed(){
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
         <span>Репост</span>
       </div>
+      ${isAdmin() ? '<div class="s-btn admin-del-btn" onclick="adminDeleteVideo('+i+')" style="opacity:.8;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><span style="color:#ef4444;font-size:9px;">Удалить</span></div>' : ''}
 
     </div>
     <div class="slide-info" ontouchstart="event.stopPropagation()">
@@ -1972,6 +1973,29 @@ function fAnimProg(idx){
   clearInterval(fTimer);
   // Just reset progress bar, no auto-scroll
   document.querySelectorAll('.prog-fill').forEach((f,i)=>{f.style.transition='none';f.style.width='0%';});
+}
+
+function isAdmin() {
+  try {
+    const u = JSON.parse(localStorage.getItem('miri_user') || '{}');
+    return u.role === 'admin';
+  } catch(e) { return false; }
+}
+
+async function adminDeleteVideo(idx) {
+  const feedData = serverVideos || VIDS;
+  const v = feedData[idx];
+  if (!v || !v._serverVideo) return showFeedHint('Нет данных о видео');
+  if (!confirm('Удалить видео "' + (v.t || '') + '"?')) return;
+  const res = await api('DELETE', '/api/admin/videos/' + v._serverVideo.id);
+  if (res.ok) {
+    showFeedHint('✅ Видео удалено');
+    serverVideos = (serverVideos || []).filter((_, i) => i !== idx);
+    buildFeed();
+    fGoTo(Math.max(0, idx - 1), false);
+  } else {
+    showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+  }
 }
 
 async function fLike(i) {
