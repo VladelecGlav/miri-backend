@@ -1,0 +1,8 @@
+meta:
+  environment: nodejs
+  toolVersion: "22"
+build:
+  npmInstall: true
+run:
+  persistenceMount: /data
+  command: node src/index.js
