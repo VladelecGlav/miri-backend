@@ -3590,7 +3590,6 @@ async function upStart(){
           var xhr = new XMLHttpRequest();
           xhr.open('PUT', presignRes.data.uploadUrl);
           xhr.setRequestHeader('Content-Type', mimetype);
-          xhr.setRequestHeader('x-amz-acl', 'public-read');
           xhr.upload.onprogress = function(e) {
             if (e.lengthComputable) {
               var pct = Math.round((e.loaded / e.total) * 75) + 15;

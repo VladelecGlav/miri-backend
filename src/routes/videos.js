@@ -34,15 +34,15 @@ function generatePresignedUrl(filename, mimetype, expiresIn = 3600) {
     'X-Amz-Credential':    credential,
     'X-Amz-Date':          time,
     'X-Amz-Expires':       String(expiresIn),
-    'X-Amz-SignedHeaders': 'content-type;host;x-amz-acl',
+    'X-Amz-SignedHeaders': 'host',
   });
 
   const canonicalRequest = [
     'PUT',
     '/' + key,
     queryParams.toString(),
-    'content-type:' + mimetype + '\n' + 'host:' + host + '\n' + 'x-amz-acl:public-read\n',
-    'content-type;host;x-amz-acl',
+    'host:' + host + '\n',
+    'host',
     'UNSIGNED-PAYLOAD',
   ].join('\n');
 
