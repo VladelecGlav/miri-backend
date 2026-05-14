@@ -9,15 +9,16 @@ import { authenticate, optionalAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// ── Selectel S3 ──────────────────────────────────────────
+// ── Timeweb S3 ───────────────────────────────────────────
+const S3_ENDPOINT   = process.env.S3_ENDPOINT   || 'https://s3.twcstorage.ru';
 const S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || '';
 const S3_SECRET_KEY = process.env.S3_SECRET_KEY || '';
 const S3_BUCKET     = process.env.S3_BUCKET     || 'miri-videos';
-const S3_REGION     = process.env.S3_REGION     || 'ru-7';
+const S3_REGION     = process.env.S3_REGION     || 'ru-1';
 
-async function uploadToSelectel(buffer, filename, mimetype) {
+async function uploadToS3(buffer, filename, mimetype) {
   const key  = 'videos/' + filename;
-  const host = S3_BUCKET + '.s3.' + S3_REGION + '.storage.selcloud.ru';
+  const host = new URL(S3_ENDPOINT).host;
   const now  = new Date();
   const date = now.toISOString().slice(0,10).replace(/-/g,'');
   const time = now.toISOString().replace(/[-:.]/g,'').slice(0,15) + 'Z';
@@ -26,16 +27,14 @@ async function uploadToSelectel(buffer, filename, mimetype) {
   const sha256 = d => crypto.createHash('sha256').update(typeof d === 'string' ? Buffer.from(d) : d).digest('hex');
 
   const payloadHash = sha256(buffer);
-  const canonicalHeaders = [
-    'content-type:' + mimetype,
-    'host:' + host,
-    'x-amz-content-sha256:' + payloadHash,
-    'x-amz-date:' + time,
-  ].join('\n') + '\n';
-  const signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+  const canonicalHeaders =
+    'host:' + host + '\n' +
+    'x-amz-content-sha256:' + payloadHash + '\n' +
+    'x-amz-date:' + time + '\n';
+  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
   const canonicalRequest = [
-    'PUT', '/' + key, '',
+    'PUT', '/' + S3_BUCKET + '/' + key, '',
     canonicalHeaders, signedHeaders, payloadHash,
   ].join('\n');
 
@@ -46,7 +45,8 @@ async function uploadToSelectel(buffer, filename, mimetype) {
   const authHeader = 'AWS4-HMAC-SHA256 Credential=' + S3_ACCESS_KEY + '/' + credScope +
     ',SignedHeaders=' + signedHeaders + ',Signature=' + signature;
 
-  const url = 'https://' + host + '/' + key;
+  const url = S3_ENDPOINT + '/' + S3_BUCKET + '/' + key;
+
   const resp = await fetch(url, {
     method: 'PUT',
     headers: {
@@ -61,10 +61,12 @@ async function uploadToSelectel(buffer, filename, mimetype) {
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error('Selectel ' + resp.status + ': ' + text);
+    throw new Error('S3 ' + resp.status + ': ' + text);
   }
-  console.log('✅ Uploaded to Selectel:', url);
-  return 'https://' + host + '/' + key;
+
+  const publicUrl = S3_ENDPOINT + '/' + S3_BUCKET + '/' + key;
+  console.log('✅ Uploaded to Timeweb S3:', publicUrl);
+  return publicUrl;
 }
 
 // Генерация presigned URL для прямой загрузки с браузера
@@ -154,7 +156,7 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     const filename = uuid() + path.extname(req.file.originalname);
 
     if (S3_ACCESS_KEY && S3_SECRET_KEY) {
-      fileUrl = await uploadToSelectel(req.file.buffer, filename, req.file.mimetype);
+      fileUrl = await uploadToS3(req.file.buffer, filename, req.file.mimetype);
     } else {
       const dir = './uploads/videos';
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
