@@ -67,6 +67,9 @@ router.post('/create', authenticate, async (req, res) => {
     };
 
     const auth = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET}`).toString('base64');
+    console.log('YooKassa request:', JSON.stringify(paymentData));
+    console.log('Shop ID:', YOOKASSA_SHOP_ID);
+
     const resp = await fetch('https://api.yookassa.ru/v3/payments', {
       method: 'POST',
       headers: {
@@ -78,9 +81,9 @@ router.post('/create', authenticate, async (req, res) => {
     });
 
     const data = await resp.json();
+    console.log('YooKassa response:', resp.status, JSON.stringify(data));
     if (!resp.ok) {
-      console.error('YooKassa error:', data);
-      return res.status(400).json({ error: data.description || 'Ошибка создания платежа' });
+      return res.status(400).json({ error: data.description || data.message || JSON.stringify(data) });
     }
 
     // Сохраняем платёж в БД
