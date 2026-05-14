@@ -10,7 +10,8 @@ import videosRouter from './routes/videos.js';
 import usersRouter  from './routes/users.js';
 import aiRouter     from './routes/ai.js';
 import trendsRouter  from './routes/trends.js';
-import billingRouter from './routes/billing.js';
+import billingRouter  from './routes/billing.js';
+import paymentsRouter from './routes/payments.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,7 +30,8 @@ app.use('/api/videos', videosRouter);
 app.use('/api/users',  usersRouter);
 app.use('/api/ai',     aiRouter);
 app.use('/api/trends',  trendsRouter);
-app.use('/api/billing', billingRouter);
+app.use('/api/billing',  billingRouter);
+app.use('/api/payments', paymentsRouter);
 
 app.get('/health', (_, res) => res.json({ status:'ok', app:'Miri API', db:'SQLite', version:'2.0.0', time:new Date().toISOString() }));
 

@@ -800,10 +800,30 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
           ✦ Тексты: 10 запросов/час · 60 в сутки<br>
           ✦ Безлимит Stable Diffusion
         </div>
-        <button onclick="activatePlan('basic')" id="basicPlanBtn" style="width:100%;height:46px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">
+        <button onclick="buyPackage('basic_monthly')" id="basicPlanBtn" style="width:100%;height:46px;background:#F2C12E;border:none;border-radius:12px;font-size:14px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">
           Подключить за 890₽/мес
         </button>
-        <div style="font-size:10px;color:rgba(255,255,255,.2);text-align:center;margin-top:8px;">Тестовый режим — без оплаты</div>
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:10px;">
+          <img src="https://yookassa.ru/files/home/logo-main.svg" style="height:16px;opacity:.4;" onerror="this.style.display='none'">
+          <span style="font-size:10px;color:rgba(255,255,255,.2);">Оплата через ЮKassa · МИР · СБП · Visa</span>
+        </div>
+      </div>
+
+      <!-- Token packages -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:10px;">Докупить токены</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;cursor:pointer;" onclick="buyPackage('tokens_100')">
+            <div style="font-size:18px;font-weight:800;color:#fff;">100 🪙</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.3);margin:3px 0 8px;">токенов</div>
+            <div style="font-size:14px;font-weight:700;color:#F2C12E;">190₽</div>
+          </div>
+          <div style="background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:12px;padding:12px;cursor:pointer;" onclick="buyPackage('tokens_300')">
+            <div style="font-size:18px;font-weight:800;color:#fff;">300 🪙</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.3);margin:3px 0 8px;">токенов</div>
+            <div style="font-size:14px;font-weight:700;color:#F2C12E;">499₽</div>
+          </div>
+        </div>
       </div>
 
       <!-- Coming soon -->
@@ -1275,14 +1295,22 @@ function loginWithGoogle() {
   window.location.href = API_URL + '/api/auth/google';
 }
 
-// Handle Google OAuth callback token in URL
+// Handle Google OAuth callback token and payment success
 (function() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
+  const payment = params.get('payment');
   if (token) {
     localStorage.setItem('miri_token', token);
     API_TOKEN = token;
-    // Clean URL
+  }
+  if (payment === 'success') {
+    setTimeout(function() {
+      showFeedHint('✅ Оплата прошла! Токены начислены');
+      loadBilling();
+    }, 1500);
+  }
+  if (token || payment) {
     window.history.replaceState({}, '', '/index.html');
   }
 })();
@@ -2472,6 +2500,20 @@ async function loadTokenHistory() {
       el.textContent = 'История пуста';
     }
   } catch(e) { el.textContent = 'Ошибка загрузки'; }
+}
+
+async function buyPackage(packageId) {
+  if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); navTo('auth'); return; }
+  const btn = document.getElementById('basicPlanBtn');
+  if (btn && packageId === 'basic_monthly') { btn.textContent = '⏳ Создаём платёж...'; btn.disabled = true; }
+
+  const res = await api('POST', '/api/payments/create', { package_id: packageId });
+  if (res.ok && res.data.confirmation_url) {
+    window.location.href = res.data.confirmation_url;
+  } else {
+    showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+    if (btn) { btn.textContent = 'Подключить за 890₽/мес'; btn.disabled = false; }
+  }
 }
 
 async function activatePlan(plan) {
