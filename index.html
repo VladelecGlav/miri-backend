@@ -4332,10 +4332,24 @@ async function loadMyProfile() {
     if (hndl) hndl.textContent = '@' + (user.handle || 'user') + ' · Miri';
 
     // Load fresh data from server
-    const [meRes, vidsRes] = await Promise.all([
+    const [meRes, vidsRes, plsRes] = await Promise.all([
       api('GET', '/api/auth/me'),
       api('GET', '/api/videos/user/' + user.id),
+      api('GET', '/api/playlists/user/' + user.id),
     ]);
+
+    // Load playlists
+    if (plsRes.ok) {
+      userPlaylists = (plsRes.data.playlists || []).map(pl => ({
+        id: pl.id,
+        name: pl.name,
+        eps: pl.videos_count || 0,
+        badge: '',
+        covers: pl.covers || ['linear-gradient(135deg,#0f2027,#2c5364)'],
+        genre: '',
+        episodes: [],
+      }));
+    }
 
     if (meRes.ok) {
       const u = meRes.data.user;
@@ -4775,40 +4789,51 @@ async function savePlCreator() {
   const name = document.getElementById('plCrName')?.value.trim();
   if (!name) return;
 
-  const selectedIds = [...plCrSelectedVids];
-  const myVids = userVideos || [];
-  const episodes = selectedIds.map((id, i) => {
-    const v = myVids.find(x => x.id === id);
-    return v ? {
-      n: i + 1,
-      t: v.title || 'Без названия',
-      d: v.description || '',
-      bg: 'linear-gradient(135deg,#0f2027,#2c5364)',
-      dur: '',
-      v: String(v.views || 0),
-      file_url: v.file_url,
-    } : null;
-  }).filter(Boolean);
+  const btn = document.getElementById('plCrSaveBtn');
+  if (btn) { btn.textContent = 'Сохраняем...'; btn.disabled = true; }
 
-  const coverV = plCrCoverVidId ? myVids.find(x => x.id === plCrCoverVidId) : null;
-  const newPl = {
-    id: 'pl_' + Date.now(),
-    name,
-    eps: episodes.length,
-    badge: 'new',
-    covers: [
-      'linear-gradient(135deg,#0f2027,#2c5364)',
-      'linear-gradient(135deg,#1e3a5f,#2563eb)',
-      'linear-gradient(135deg,#064e3b,#047857)',
-    ],
-    genre: '',
-    episodes,
-    cover_file_url: coverV?.file_url || null,
-  };
+  try {
+    // Сохраняем плейлист на сервер
+    const res = await api('POST', '/api/playlists', { name, is_public: true });
+    if (!res.ok) {
+      showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+      if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
+      return;
+    }
 
-  userPlaylists = [...(userPlaylists || []), newPl];
-  closePlCreator();
-  profTab('p');
+    const pl = res.data.playlist;
+    const selectedIds = [...plCrSelectedVids];
+
+    // Добавляем видео в плейлист
+    for (const videoId of selectedIds) {
+      await api('POST', '/api/playlists/' + pl.id + '/videos', { video_id: videoId });
+    }
+
+    // Добавляем в локальный список
+    const myVids = userVideos || [];
+    const episodes = selectedIds.map((id, i) => {
+      const v = myVids.find(x => x.id === id);
+      return v ? { n: i+1, t: v.title||'Без названия', d: v.description||'', bg: 'linear-gradient(135deg,#0f2027,#2c5364)', dur: '', v: String(v.views||0), file_url: v.file_url } : null;
+    }).filter(Boolean);
+
+    const newPl = {
+      id: pl.id,
+      name: pl.name,
+      eps: episodes.length,
+      badge: 'new',
+      covers: ['linear-gradient(135deg,#0f2027,#2c5364)', 'linear-gradient(135deg,#1e3a5f,#2563eb)', 'linear-gradient(135deg,#064e3b,#047857)'],
+      genre: '',
+      episodes,
+    };
+
+    userPlaylists = [...(userPlaylists || []), newPl];
+    showFeedHint('✅ Плейлист создан!');
+    closePlCreator();
+    profTab('p');
+  } catch(e) {
+    showFeedHint('Ошибка: ' + e.message);
+    if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
+  }
 }
 
 // ── PROFILE EDIT ─────────────────────────────────────────
