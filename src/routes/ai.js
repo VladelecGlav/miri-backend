@@ -138,8 +138,8 @@ router.post('/translate', authenticate, async (req, res) => {
 router.post('/chat', authenticate, async (req, res) => {
   if (!AIMLAPI_KEY) return res.status(500).json({ error: 'API ключ не настроен' });
 
-  const { model = 'claude-sonnet-4-20250514', system, prompt, provider = 'claude' } = req.body;
-  if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
+  const { model = 'claude-sonnet-4-20250514', system, prompt, provider = 'claude', images = [] } = req.body;
+  if (!prompt && !images.length) return res.status(400).json({ error: 'Промпт обязателен' });
 
   // SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
@@ -201,6 +201,20 @@ router.post('/chat', authenticate, async (req, res) => {
     }
 
     // Все остальные — через aimlapi streaming
+    // Build message content with optional images
+    let userContent;
+    if (images && images.length > 0) {
+      userContent = [
+        ...images.map(img => ({
+          type: 'image_url',
+          image_url: { url: `data:${img.type};base64,${img.base64}` },
+        })),
+        { type: 'text', text: prompt || 'Опиши это изображение' },
+      ];
+    } else {
+      userContent = prompt;
+    }
+
     const resp = await fetch('https://api.aimlapi.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${AIMLAPI_KEY}`, 'Content-Type': 'application/json' },
@@ -210,7 +224,7 @@ router.post('/chat', authenticate, async (req, res) => {
         stream: true,
         messages: [
           ...(system ? [{ role: 'system', content: system }] : []),
-          { role: 'user', content: prompt },
+          { role: 'user', content: userContent },
         ],
       }),
     });

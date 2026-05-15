@@ -1102,7 +1102,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
     </div>
     <div class="ai-style-chips" id="aiStyleChips"></div>
     <div class="ai-chat-msgs" id="aiChatMsgs"></div>
+    <!-- Image preview strip -->
+    <div id="aiImagePreview" style="display:none;padding:8px 16px 0;gap:8px;flex-wrap:wrap;"></div>
     <div class="ai-chat-input-bar">
+      <input type="file" id="aiImageInput" accept="image/*" multiple style="display:none;" onchange="onAiImageSelect(event)">
+      <button onclick="document.getElementById('aiImageInput').click()" id="aiAttachBtn" style="display:none;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      </button>
       <textarea class="ai-chat-input" id="aiChatInput" placeholder="Опиши что хочешь создать..." rows="1"
         oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAiChat();}"></textarea>
@@ -5058,6 +5064,16 @@ function openAiChat(tool) {
   document.getElementById('aiChatModel').textContent = tool.model;
   document.getElementById('aiChatInput').placeholder = tool.ph || 'Опиши что хочешь создать...';
 
+  // Show image attach button only for vision models (text tools with GPT)
+  var attachBtn = document.getElementById('aiAttachBtn');
+  if (attachBtn) {
+    attachBtn.style.display = (tool.rt === 'text' && selectedTextProvider?.provider === 'ChatGPT') ? 'flex' : 'none';
+  }
+  // Clear attached images when opening new chat
+  aiAttachedImages = [];
+  var prevEl = document.getElementById('aiImagePreview');
+  if (prevEl) { prevEl.innerHTML = ''; prevEl.style.display = 'none'; }
+
 
   // Init model selector
   var msEl = document.getElementById('aiModelSelector');
@@ -5470,7 +5486,9 @@ async function sendAiChat() {
 
   const input = document.getElementById('aiChatInput');
   const text = input?.value.trim();
-  if (!text || !aiChatTool) return;
+  const hasImages = aiAttachedImages && aiAttachedImages.length > 0;
+  if (!text && !hasImages) return;
+  if (!aiChatTool) return;
 
   if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); return; }
 
@@ -5478,9 +5496,12 @@ async function sendAiChat() {
   const sendBtn = document.getElementById('aiChatSendBtn');
   if (sendBtn) sendBtn.disabled = true;
 
-  // Clear input immediately
+  // Clear input and images immediately
   input.value = '';
   input.style.height = '42px';
+  aiAttachedImages = [];
+  var prevEl2 = document.getElementById('aiImagePreview');
+  if (prevEl2) { prevEl2.innerHTML = ''; prevEl2.style.display = 'none'; }
 
   const t = aiChatTool;
   const msgId = 'msg_' + Date.now();
@@ -5550,6 +5571,46 @@ function updateChatMsg(toolId, msgId, updates) {
   }
 }
 
+// ── IMAGE ATTACH ─────────────────────────────────────────
+let aiAttachedImages = []; // [{base64, type, preview}]
+
+function onAiImageSelect(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+
+  files.slice(0, 4).forEach(function(file) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var base64 = e.target.result.split(',')[1];
+      aiAttachedImages.push({ base64, type: file.type, preview: e.target.result });
+      renderImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Reset input so same file can be selected again
+  event.target.value = '';
+}
+
+function renderImagePreviews() {
+  var el = document.getElementById('aiImagePreview');
+  if (!el) return;
+  if (aiAttachedImages.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+  el.style.display = 'flex';
+  el.innerHTML = aiAttachedImages.map(function(img, i) {
+    return '<div style="position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;flex-shrink:0;">' +
+      '<img src="' + img.preview + '" style="width:100%;height:100%;object-fit:cover;">' +
+      '<button onclick="removeAiImage(' + i + ')" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.7);border:none;color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function removeAiImage(idx) {
+  aiAttachedImages.splice(idx, 1);
+  renderImagePreviews();
+}
+
 async function runClaudeChat(t, prompt, msgId) {
   const modelName = selectedTextModel?.name || 'Claude Sonnet';
   const modelId   = selectedTextModel?.id   || 'claude-sonnet-4-20250514';
@@ -5602,7 +5663,12 @@ async function runClaudeChat(t, prompt, msgId) {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + API_TOKEN,
       },
-      body: JSON.stringify({ model: modelId, provider, system, prompt: userMsg }),
+      body: JSON.stringify({
+        model: modelId, provider, system, prompt: userMsg,
+        images: aiAttachedImages.length > 0 ? aiAttachedImages.map(function(img) {
+          return { base64: img.base64, type: img.type };
+        }) : undefined,
+      }),
     });
 
     if (!resp.ok) throw new Error('Ошибка ' + resp.status);
