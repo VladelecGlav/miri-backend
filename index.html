@@ -5917,7 +5917,7 @@ async function runPollinationsChat(t, prompt, msgId) {
       var cancelFn = function() { cancelled = true; };
 
       // Прогресс-бар с таймером
-      var totalSecs = 420; // 7 минут
+      var totalSecs = 120; // 7 минут
       var elapsed = 0;
       var timerInterval = setInterval(function() {
         elapsed++;
@@ -5935,7 +5935,7 @@ async function runPollinationsChat(t, prompt, msgId) {
       }, 1000);
 
       // Polling каждые 5 секунд
-      var maxAttempts = 84;
+      var maxAttempts = 24;
       try {
         for (var i = 0; i < maxAttempts; i++) {
           await new Promise(function(r){ setTimeout(r, 5000); });
@@ -5968,7 +5968,7 @@ async function runPollinationsChat(t, prompt, msgId) {
         // Возвращаем токены при таймауте
         await api('POST', '/api/ai/refund-tokens', { cost, description: 'Таймаут генерации: ' + model });
         if (userBilling) userBilling.balance = (userBilling.balance || 0) + cost;
-        throw new Error('Превышено время ожидания (7 мин). Токены возвращены');
+        throw new Error('Превышено время ожидания (2 мин). Токены возвращены');
       }
     }
 
