@@ -5242,8 +5242,15 @@ function renderChatMsg(m) {
   const time = m.ts ? new Date(m.ts).toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'}) : '';
 
   if (m.role === 'user') {
+    var imgHtml = '';
+    if (m.images && m.images.length > 0) {
+      imgHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">' +
+        m.images.map(function(src) {
+          return '<img src="' + src + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">';
+        }).join('') + '</div>';
+    }
     return `<div class="ai-msg ai-msg-user">
-      <div class="ai-bubble-user">${m.text}</div>
+      <div class="ai-bubble-user">${imgHtml}${m.text}</div>
       <div class="ai-msg-time">${time}</div>
     </div>`;
   }
@@ -5648,7 +5655,7 @@ async function sendAiChat() {
   const msgId = 'msg_' + Date.now();
 
   // Add user message
-  const userMsg = { id: 'u_' + Date.now(), role: 'user', text, ts: Date.now() };
+  const userMsg = { id: 'u_' + Date.now(), role: 'user', text, ts: Date.now(), images: _attachedImagesCopy.map(function(img){ return img.preview; }) };
   addChatMsg(t.id, userMsg);
 
   // Add AI thinking message
