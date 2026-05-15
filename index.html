@@ -5910,9 +5910,9 @@ async function runPollinationsChat(t, prompt, msgId) {
       updateChatMsg(t.id, msgId, { statusText: '⏳ Генерируем...', progress: 40 });
       renderChatHistory(t.id);
 
-      var maxAttempts = 60;
+      var maxAttempts = 84;
       for (var i = 0; i < maxAttempts; i++) {
-        await new Promise(function(r){ setTimeout(r, 3000); });
+        await new Promise(function(r){ setTimeout(r, 5000); });
         var statusRes = await api('GET', '/api/ai/image-status/' + taskId);
         if (!statusRes.ok) continue;
 
