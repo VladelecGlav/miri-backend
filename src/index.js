@@ -13,7 +13,7 @@ import trendsRouter  from './routes/trends.js';
 import billingRouter  from './routes/billing.js';
 import paymentsRouter from './routes/payments.js';
 import adminRouter     from './routes/admin.js';
-import playlistsRouter from './routes/playlists.js';
+import playlistsRouter from './routes/playlist.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
