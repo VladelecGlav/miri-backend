@@ -86,6 +86,28 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_trends_official ON trends(is_official);
     CREATE INDEX IF NOT EXISTS idx_trends_user ON trends(user_id);
 
+    CREATE TABLE IF NOT EXISTS playlists (
+      id          TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name        TEXT NOT NULL,
+      description TEXT,
+      cover_url   TEXT,
+      is_public   INTEGER NOT NULL DEFAULT 1,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS playlist_videos (
+      id          TEXT PRIMARY KEY,
+      playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+      video_id    TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+      position    INTEGER NOT NULL DEFAULT 0,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(playlist_id, video_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pl_user ON playlists(user_id);
+    CREATE INDEX IF NOT EXISTS idx_pl_videos ON playlist_videos(playlist_id);
+
     -- Подписки и токены
     CREATE TABLE IF NOT EXISTS subscriptions (
       id              TEXT PRIMARY KEY,

@@ -3805,10 +3805,22 @@ async function openUserPage(userId) {
           title: v.title,
           _serverVideo: v,
         }));
-        // Refresh grid after videos loaded
-        window._curUser = u;
-        switchUserTab('vids');
       }
+      // Load playlists
+      const plRes = await api('GET', '/api/playlists/user/' + u.id);
+      if (plRes.ok) {
+        u.playlists = (plRes.data.playlists || []).map(pl => ({
+          id: pl.id,
+          name: pl.name,
+          eps: pl.videos_count || 0,
+          badge: '',
+          covers: pl.covers || [],
+          genre: '',
+          episodes: [],
+        }));
+      }
+      window._curUser = u;
+      switchUserTab('vids');
     }
   }
 
@@ -3840,9 +3852,16 @@ async function openUserPage(userId) {
           title: v.title,
           _serverVideo: v,
         }));
-        window._curUser = u;
-        switchUserTab('vids');
       }
+      const plRes2 = await api('GET', '/api/playlists/user/' + u.id);
+      if (plRes2.ok) {
+        u.playlists = (plRes2.data.playlists || []).map(pl => ({
+          id: pl.id, name: pl.name, eps: pl.videos_count || 0,
+          badge: '', covers: pl.covers || [], genre: '', episodes: [],
+        }));
+      }
+      window._curUser = u;
+      switchUserTab('vids');
     }
   }
 
