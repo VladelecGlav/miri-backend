@@ -980,7 +980,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       </button>
       <div class="p-tabs">
         <div class="p-tab active" onclick="profTab('v')"><span>⊞</span>Видео</div>
-        <div class="p-tab" onclick="profTab('p')"><span>🎬</span>Плейлисты</div>
+
         <div class="p-tab" onclick="profTab('l')"><span>♥</span>Лайки</div>
         <div class="p-tab" onclick="profTab('s')"><span>👥</span>Подписки</div>
       </div>
@@ -1029,7 +1029,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       </div>
       <div style="display:flex;border-bottom:.5px solid rgba(255,255,255,.08);margin:0 0 4px;">
         <div class="u-tab on" id="uTabVids" onclick="switchUserTab('vids')" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.35);cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;">⊞ Видео</div>
-        <div class="u-tab" id="uTabPls" onclick="switchUserTab('pls')" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.35);cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;">🎬 Плейлисты</div>
+
       </div>
       <div id="userVidsGrid" style="padding:8px 16px;"></div>
     </div>
@@ -4087,7 +4087,7 @@ function closePlaylist() {
 
 function profTab(t){
   editModeOn = false; // reset edit mode on tab switch
-  document.querySelectorAll('.p-tab').forEach((el,i)=>el.classList.toggle('active',['v','p','l','s'][i]===t));
+  document.querySelectorAll('.p-tab').forEach((el,i)=>el.classList.toggle('active',['v','l','s'][i]===t));
   const c=document.getElementById('pContent');
   if(t==='v'){
     const myVids = userVideos || [];
@@ -4816,7 +4816,7 @@ async function savePlCreator() {
   }
 
   closePlCreator();
-  profTab('p');
+  profTab('v');
 }
 
 
