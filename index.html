@@ -2178,16 +2178,9 @@ const TIER_ICON = { pro: '🏆', fast: '⚡', web: '🌐' };
 // Модели для генерации изображений
 const IMAGE_MODELS = [
   {
-    provider: 'Pollinations', providerIcon: '🌸', providerColor: '#4ade80',
-    models: [
-      { id: 'pollinations', name: 'Pollinations', tier: 'fast', free: true },
-    ],
-  },
-  {
     provider: 'Nano Banana', providerIcon: '🍌', providerColor: '#facc15',
     models: [
-      { id: 'nano-banana-2',  name: 'Nano Banana 2',  tier: 'fast', cost: 3 },
-      { id: 'nano-banana-pro', name: 'Nano Banana Pro', tier: 'pro',  cost: 3 },
+      { id: 'nano-banana-2', name: 'Nano Banana 2', tier: 'fast', cost: 3 },
     ],
   },
 ];
@@ -5127,7 +5120,7 @@ function openAiChat(tool) {
   var attachBtn = document.getElementById('aiAttachBtn');
   if (attachBtn) {
     var showAttach = (tool.rt === 'text' && selectedTextProvider?.provider === 'ChatGPT') ||
-                   (tool.rt === 'image' && selectedImageModel?.id !== 'pollinations');
+                   (tool.rt === 'image');
   attachBtn.style.display = showAttach ? 'flex' : 'none';
   }
   // Clear attached images when opening new chat
