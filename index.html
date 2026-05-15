@@ -5476,24 +5476,31 @@ function renderTextProviderPanel() {
   if (!tabsEl || !modelsEl) return;
 
   // Provider tabs
-  tabsEl.innerHTML = TEXT_MODELS.map(function(p) {
+  tabsEl.innerHTML = '';
+  TEXT_MODELS.forEach(function(p) {
+    var btn = document.createElement('button');
     var isActive = p.provider === selectedTextProvider.provider;
-    return '<button onclick="selectTextProvider('' + p.provider + '')" style="' +
-      'white-space:nowrap;padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;border:.5px solid ' +
-      (isActive ? 'rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E' : 'rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4)') +
-      ';">' + p.providerIcon + ' ' + p.provider + '</button>';
-  }).join('');
+    btn.style.cssText = 'white-space:nowrap;padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;border:.5px solid ' +
+      (isActive ? 'rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E' : 'rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4)') + ';';
+    btn.textContent = p.providerIcon + ' ' + p.provider;
+    btn.onclick = (function(name){ return function(){ selectTextProvider(name); }; })(p.provider);
+    tabsEl.appendChild(btn);
+  });
 
-  // Model chips for selected provider
-  modelsEl.innerHTML = selectedTextProvider.models.map(function(m) {
-    var isActive = m.id === selectedTextModel?.id;
-    var tierIcon = { pro: '🏆', fast: '⚡', web: '🌐' }[m.tier] || '';
-    return '<button onclick="selectTextModelChip('' + m.id + '')" style="' +
-      'white-space:nowrap;padding:5px 12px;border-radius:16px;font-size:11px;cursor:pointer;font-family:-apple-system,sans-serif;border:.5px solid ' +
-      (isActive ? 'rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E;font-weight:700' : 'rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.5);font-weight:400') +
-      ';">' + tierIcon + ' ' + m.name + '</button>';
-  }).join('');
+  // Model chips
+  modelsEl.innerHTML = '';
+  selectedTextProvider.models.forEach(function(m) {
+    var btn = document.createElement('button');
+    var isActive = m.id === (selectedTextModel && selectedTextModel.id);
+    var tierIcon = {pro:'🏆', fast:'⚡', web:'🌐'}[m.tier] || '';
+    btn.style.cssText = 'white-space:nowrap;padding:5px 12px;border-radius:16px;font-size:11px;cursor:pointer;font-family:-apple-system,sans-serif;border:.5px solid ' +
+      (isActive ? 'rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E;font-weight:700' : 'rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.5);font-weight:400') + ';';
+    btn.textContent = tierIcon + ' ' + m.name;
+    btn.onclick = (function(id){ return function(){ selectTextModelChip(id); }; })(m.id);
+    modelsEl.appendChild(btn);
+  });
 }
+
 
 function selectTextProvider(providerName) {
   var p = TEXT_MODELS.find(function(x){ return x.provider === providerName; });
