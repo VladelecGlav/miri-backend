@@ -808,6 +808,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
         </div>
       </div>
 
+      <!-- Promo code -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:8px;">Промокод</div>
+        <div style="display:flex;gap:8px;">
+          <input id="promoCodeInput" placeholder="Введи промокод" style="flex:1;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;font-family:-apple-system,sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          <button onclick="activatePromo()" style="padding:10px 16px;background:#F2C12E;border:none;border-radius:10px;font-size:13px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;white-space:nowrap;">Применить</button>
+        </div>
+        <div id="promoResult" style="font-size:12px;margin-top:6px;display:none;"></div>
+      </div>
+
       <!-- Token packages -->
       <div style="margin-bottom:12px;">
         <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:10px;">Докупить токены</div>
@@ -2471,6 +2481,30 @@ function renderTrendList(containerId, trends) {
 
 // ── BILLING / PLANS ──────────────────────────────────────
 let userBilling = null;
+
+async function activatePromo() {
+  const input = document.getElementById('promoCodeInput');
+  const result = document.getElementById('promoResult');
+  const code = input?.value.trim();
+  if (!code) return;
+  if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); return; }
+
+  result.style.display = 'block';
+  result.style.color = 'rgba(255,255,255,.4)';
+  result.textContent = '⏳ Проверяем...';
+
+  const res = await api('POST', '/api/promo/activate', { code });
+  if (res.ok) {
+    result.style.color = '#4ade80';
+    result.textContent = '✅ ' + res.data.message;
+    if (input) input.value = '';
+    await loadBilling();
+    updatePlansPage();
+  } else {
+    result.style.color = '#ef4444';
+    result.textContent = '❌ ' + (res.data?.error || 'Ошибка');
+  }
+}
 
 async function loadBilling() {
   if (!API_TOKEN) return;
@@ -5719,7 +5753,24 @@ function copyStreamText(msgId) {
   });
 }
 
+async function checkTokens(cost) {
+  if (!API_TOKEN) return true; // не авторизован — разрешаем (бэкенд проверит)
+  if (!userBilling) await loadBilling();
+  const bal = userBilling?.balance || 0;
+  if (bal < cost) {
+    showFeedHint('Недостаточно токенов! Нужно ' + cost + ' 🪙, у тебя ' + bal);
+    navTo('plans');
+    return false;
+  }
+  return true;
+}
+
 async function runPollinationsChat(t, prompt, msgId) {
+  // Проверяем токены (3 токена за изображение)
+  if (!await checkTokens(3)) {
+    updateChatMsg(t.id, msgId, { status: 'error', errorText: 'Недостаточно токенов' });
+    return;
+  }
   updateChatMsg(t.id, msgId, { statusText: 'Рисуем...', progress: 20 });
   const styleMap = { 'Аниме': 'anime style', 'Живопись': 'oil painting', '3D': '3D render', 'Пиксель-арт': 'pixel art', 'Фото': 'photorealistic' };
   const styleStr = styleMap[aiChatStyle] || 'photorealistic';
@@ -5740,6 +5791,11 @@ async function runMusicChat(t, prompt, msgId) {
 }
 
 async function runKlingChat(t, prompt, msgId) {
+  // Проверяем токены (6 токенов за видео)
+  if (!await checkTokens(6)) {
+    updateChatMsg(t.id, msgId, { status: 'error', errorText: 'Недостаточно токенов' });
+    return;
+  }
   updateChatMsg(t.id, msgId, { statusText: 'Переводим промпт...', progress: 10 });
 
   // Translate & optimize prompt via DeepSeek (21× cheaper than Claude)

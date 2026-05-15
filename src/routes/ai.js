@@ -1,9 +1,34 @@
 import { Router } from 'express';
-import { authenticate } from '../middleware/auth.js';
+import { v4 as uuid } from 'uuid';
+import { authenticate, optionalAuth } from '../middleware/auth.js';
+import { dbGet, dbRun } from '../models/migrate.js';
 
 const router = Router();
 const AIMLAPI_KEY = process.env.AIMLAPI_KEY;
 const BASE = 'https://api.aimlapi.com/v2';
+
+// Стоимость генераций в токенах
+const GEN_COSTS = { image: 3, video: 6 };
+
+async function deductTokens(userId, type, description) {
+  const cost = GEN_COSTS[type] || 0;
+  if (!cost || !userId) return { ok: true, cost: 0 };
+
+  const balance = await dbGet('SELECT balance FROM token_balance WHERE user_id=$1', [userId]);
+  const current = balance?.balance || 0;
+
+  if (current < cost) {
+    return { ok: false, error: 'Недостаточно токенов', balance: current, cost };
+  }
+
+  await dbRun('UPDATE token_balance SET balance=balance-$1, updated_at=NOW() WHERE user_id=$2', [cost, userId]);
+  await dbRun(
+    'INSERT INTO token_transactions (id,user_id,amount,type,description) VALUES ($1,$2,$3,$4,$5)',
+    [uuid(), userId, -cost, 'spend', description || type]
+  );
+
+  return { ok: true, cost, balance: current - cost };
+}
 
 // ── POST /api/ai/generate-video ─────────────────────────
 router.post('/generate-video', authenticate, async (req, res) => {
@@ -11,13 +36,17 @@ router.post('/generate-video', authenticate, async (req, res) => {
 
   const {
     prompt,
-    model = 'kling-video/v1.6/standard/text-to-video',  // v1.6 — актуальная версия
+    model = 'kling-video/v1.6/standard/text-to-video',
     duration = '5',
     ratio = '9:16',
     image_url
   } = req.body;
 
   if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
+
+  // Списываем токены
+  const deduct = await deductTokens(req.user.id, 'video', 'Генерация видео: ' + model);
+  if (!deduct.ok) return res.status(402).json({ error: deduct.error, balance: deduct.balance, cost: deduct.cost });
 
   try {
     const body = { model, prompt, duration, ratio };
@@ -261,6 +290,40 @@ router.post('/chat', authenticate, async (req, res) => {
   } catch (e) {
     send({ error: e.message });
     res.end();
+  }
+});
+
+// ── POST /api/ai/generate-image ─────────────────────────
+router.post('/generate-image', authenticate, async (req, res) => {
+  const { prompt, model = 'nano-banana-2' } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
+
+  const NEXUS_KEY = process.env.NEXUS_API_KEY;
+  if (!NEXUS_KEY) return res.status(500).json({ error: 'Nexus API не настроен' });
+
+  // Списываем токены
+  const deduct = await deductTokens(req.user.id, 'image', 'Генерация изображения: ' + model);
+  if (!deduct.ok) return res.status(402).json({ error: deduct.error, balance: deduct.balance, cost: deduct.cost });
+
+  try {
+    const resp = await fetch('https://api.nexusapi.dev/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${NEXUS_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt, n: 1 }),
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      // Возвращаем токены при ошибке
+      await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
+      return res.status(400).json({ error: data.error?.message || 'Ошибка генерации' });
+    }
+
+    const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+    res.json({ url: imageUrl, balance: deduct.balance });
+  } catch(e) {
+    await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
+    res.status(500).json({ error: e.message });
   }
 });
 
