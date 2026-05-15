@@ -2263,8 +2263,11 @@ let selectedMode = VIDEO_MODELS[1].modes[0];
 
 const TOOLS=[
   {id:'text',n:'Текст и сценарии',e:'✍️',d:'Сценарии, описания, код, хэштеги и многое другое',badge:'',bc:'',cat:'text',
-   model:'Claude Sonnet',modelIcon:'A',modelColor:'#F2C12E',status:'live',
+   model:'claude-sonnet-4-20250514',provider:'claude',modelIcon:'A',modelColor:'#F2C12E',status:'live',
    bg:'linear-gradient(135deg,#1e1b4b,#4338ca)',styles:['Сценарий','Описание','Хэштеги','Субтитры'],ph:'Напиши сценарий для 30-секундного видео про нейронные пейзажи',rt:'text'},
+  {id:'text_gpt',n:'ChatGPT',e:'🟢',d:'GPT-4.1 от OpenAI — отлично для кода и анализа',badge:'',bc:'',cat:'text',
+   model:'gpt-4.1',provider:'chatgpt',modelIcon:'G',modelColor:'#10a37f',status:'live',
+   bg:'linear-gradient(135deg,#064e3b,#10a37f)',styles:['Сценарий','Код','Анализ','Перевод'],ph:'Напиши подробный сценарий с раскадровкой для 60-секундного ролика',rt:'text'},
   {id:'photo',n:'Фото из текста',e:'🖼',d:'Создаёт изображение любого стиля',badge:'Бесплатно',bc:'tb-new',cat:'design',
    model:'Pollinations AI',modelIcon:'P',modelColor:'#4ade80',status:'live',
    bg:'linear-gradient(135deg,#2d1b69,#534AB7)',styles:['Фото','Живопись','Аниме','3D','Пиксель-арт'],ph:'Портрет в стиле японской живописи, розовые тона',rt:'image'},
@@ -5130,7 +5133,24 @@ function openAiChat(tool) {
   if (ms) ms.style.display = tool.rt === 'video' ? 'block' : 'none';
   if (tms) tms.style.display = tool.rt === 'text' ? 'block' : 'none';
   if (tool.rt === 'video') initModelSelector();
-  if (tool.rt === 'text') initTextModelSelector();
+  if (tool.rt === 'text') {
+    // Pre-select model from tool config
+    if (tool.model && tool.provider) {
+      var providerName = tool.provider === 'claude' ? 'Claude' :
+                         tool.provider === 'chatgpt' ? 'ChatGPT' :
+                         tool.provider === 'deepseek' ? 'DeepSeek' :
+                         tool.provider === 'gemini' ? 'Gemini' :
+                         tool.provider === 'grok' ? 'Grok' : 'Claude';
+      var tp = TEXT_MODELS.find(function(p){ return p.provider === providerName; });
+      if (tp) {
+        selectedTextProvider = tp;
+        var tm = tp.models.find(function(m){ return m.id === tool.model; });
+        if (tm) selectedTextModel = tm;
+        else selectedTextModel = tp.models[0];
+      }
+    }
+    initTextModelSelector();
+  }
 
   // Style chips — hide for text tool
   const chips = document.getElementById('aiStyleChips');
@@ -5468,11 +5488,20 @@ async function sendAiChat() {
   renderChatHistory(t.id);
 
   try {
-    if (t.id === 'text' || t.id === 'voice') {
+    if (t.rt === 'text') {
+      // Pre-select model based on tool
+      if (t.provider === 'chatgpt') {
+        var gptProvider = TEXT_MODELS.find(function(p){ return p.provider === 'ChatGPT'; });
+        if (gptProvider) {
+          selectedTextProvider = gptProvider;
+          var gptModel = gptProvider.models.find(function(m){ return m.id === t.model; });
+          selectedTextModel = gptModel || gptProvider.models[0];
+        }
+      }
       await runClaudeChat(t, text, msgId);
-    } else if (t.id === 'photo') {
+    } else if (t.rt === 'image') {
       await runPollinationsChat(t, text, msgId);
-    } else if (t.id === 'music') {
+    } else if (t.rt === 'audio') {
       await runMusicChat(t, text, msgId);
     } else {
       await runKlingChat(t, text, msgId);
