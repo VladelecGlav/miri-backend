@@ -9,7 +9,7 @@ const NEXUS_KEY   = process.env.NEXUS_API_KEY;
 const BASE = 'https://api.aimlapi.com/v2';
 
 // Стоимость генераций в токенах
-const GEN_COSTS = { image: 3, video: 6 };
+const GEN_COSTS = { image: 3, video: 100 };
 
 async function deductTokens(userId, type, description) {
   const cost = GEN_COSTS[type] || 0;

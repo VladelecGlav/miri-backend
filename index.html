@@ -6093,7 +6093,7 @@ async function runMusicChat(t, prompt, msgId) {
 
 async function runKlingChat(t, prompt, msgId, attachedImages) {
   // Проверяем токены (6 токенов за видео)
-  if (!await checkTokens(6)) {
+  if (!await checkTokens(100)) {
     updateChatMsg(t.id, msgId, { status: 'error', errorText: 'Недостаточно токенов' });
     return;
   }
