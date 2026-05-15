@@ -4120,6 +4120,28 @@ function profTab(t){
       </button>
     </div>`;
   } else if(t==='p'){
+    // Загружаем с сервера если нет кэша
+    if (!userPlaylists) {
+      c.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,.3);">⏳ Загрузка...</div>';
+      var savedUser2 = store.get('miri_user');
+      var uid2 = savedUser2 ? JSON.parse(savedUser2).id : null;
+      if (uid2) {
+        api('GET', '/api/playlists/user/' + uid2).then(function(res) {
+          if (res.ok) {
+            userPlaylists = (res.data.playlists || []).map(function(pl) {
+              return { id: pl.id, name: pl.name, eps: pl.videos_count||0, badge: '', covers: pl.covers||[], genre: '', episodes: [] };
+            });
+          } else {
+            userPlaylists = [];
+          }
+          profTab('p');
+        });
+      } else {
+        userPlaylists = [];
+        profTab('p');
+      }
+      return;
+    }
     const myPlaylists = userPlaylists || [];
     if (myPlaylists.length === 0) {
       c.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;padding:48px 24px;gap:10px;">
@@ -4794,13 +4816,12 @@ async function savePlCreator() {
     video_ids: selectedIds,
   });
 
-  alert('Status: ' + res.ok + ' | ' + JSON.stringify(res.data));
-
   if (res.ok) {
     showFeedHint('✅ Плейлист создан!');
-    userPlaylists = null;
+    userPlaylists = null; // сбросим кэш чтобы перезагрузить с сервера
     closePlCreator();
-    profTab('p');
+    // Небольшая задержка чтобы сервер успел сохранить
+    setTimeout(function() { profTab('p'); }, 300);
   } else {
     showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
     if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
