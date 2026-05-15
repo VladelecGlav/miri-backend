@@ -1972,10 +1972,13 @@ function playSlideVideo(idx) {
   preloadNextVideo(idx);
 
   vid.onerror = function() {
-    // Video failed to load — skip to next
-    const feedData = serverVideos || VIDS;
-    if (idx < feedData.length - 1) {
-      setTimeout(function() { fGoTo(idx + 1, false); }, 500);
+    // Only auto-skip if we're actually in the feed page
+    var feedPage = document.getElementById('pageFeed');
+    if (feedPage && feedPage.classList.contains('active')) {
+      var feedData = serverVideos || VIDS;
+      if (idx < feedData.length - 1) {
+        setTimeout(function() { fGoTo(idx + 1, false); }, 500);
+      }
     }
   };
 
