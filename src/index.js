@@ -23,8 +23,8 @@ await migrate();
 const app = express();
 app.set('trust proxy', 1); // Railway uses reverse proxy
 app.use(cors({ origin: '*' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use(express.static(path.join(__dirname, '..')));
 app.use('/api', rateLimit({ windowMs:15*60*1000, max:300, standardHeaders:true, legacyHeaders:false }));
@@ -61,5 +61,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('  POST /api/ai/generate-video');
   console.log('  POST /api/ai/generate-video-veo');
   console.log('  POST /api/ai/translate');
-  console.log('  GET  /api/ai/video-status/:id\n');
+  console.log('  GET  /api/ai/video-status/:id');
+  console.log('  POST /api/ai/generate-image');
+  console.log('  GET  /api/ai/image-status/:taskId');
+  console.log('  POST /api/ai/refund-tokens\n');
 });
