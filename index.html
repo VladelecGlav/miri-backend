@@ -1680,9 +1680,20 @@ function buildFeed(){
     s.innerHTML = `<div class="slide-bg" id="vbg_${i}" style="background:${v.bg||'#000'}"></div><div class="vig"></div>
     <div class="ai-badge"><span class="ai-dot"></span>ИИ · Для тебя</div>
     <div class="side-btns" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()">
-      <div class="s-btn" id="likeBtn${i}" onclick="fLike(${i})">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        <span id="fl${i}">${v.lk}</span>
+      <div style="position:relative;">
+        <div id="speedZone${i}"
+          style="position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:50px;height:40px;z-index:10;"
+          ontouchstart="event.stopPropagation();startSpeed()"
+          ontouchend="event.stopPropagation();stopSpeed()"
+          ontouchcancel="event.stopPropagation();stopSpeed()"
+          onmousedown="startSpeed()"
+          onmouseup="stopSpeed()"
+          onmouseleave="stopSpeed()">
+        </div>
+        <div class="s-btn" id="likeBtn${i}" onclick="fLike(${i})">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span id="fl${i}">${v.lk}</span>
+        </div>
       </div>
       <div class="s-btn" onclick="openComments(${i})">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1996,6 +2007,26 @@ async function adminDeleteVideo(idx) {
     fGoTo(Math.max(0, idx - 1), false);
   } else {
     showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+  }
+}
+
+// ── x2 SPEED ZONE ────────────────────────────────────────
+let _speedTimer = null;
+let _isSpeedMode = false;
+
+function startSpeed() {
+  _speedTimer = setTimeout(function() {
+    _isSpeedMode = true;
+    if (sharedVideo) sharedVideo.playbackRate = 2.0;
+    showFeedHint('⚡ x2');
+  }, 250);
+}
+
+function stopSpeed() {
+  clearTimeout(_speedTimer);
+  if (_isSpeedMode) {
+    _isSpeedMode = false;
+    if (sharedVideo) sharedVideo.playbackRate = 1.0;
   }
 }
 
