@@ -334,9 +334,19 @@ router.get('/image-status/:taskId', authenticate, async (req, res) => {
       headers: { 'Authorization': `Bearer ${NEXUS_KEY}` },
     });
     const data = await resp.json();
-    // result содержит url изображения
-    const url = data.result?.url || data.result?.image_url || data.result;
-    res.json({ status: data.status, url: typeof url === 'string' ? url : null, error: data.error });
+    console.log('Nexus task status:', JSON.stringify(data).slice(0, 500));
+
+    // Ищем URL в разных местах ответа
+    let url = null;
+    if (data.result) {
+      if (typeof data.result === 'string') url = data.result;
+      else if (data.result.url) url = data.result.url;
+      else if (data.result.image_url) url = data.result.image_url;
+      else if (data.result.images) url = data.result.images[0];
+      else if (Array.isArray(data.result)) url = data.result[0]?.url || data.result[0];
+    }
+
+    res.json({ status: data.status, url, raw: data.result, error: data.error });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
