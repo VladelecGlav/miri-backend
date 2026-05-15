@@ -340,9 +340,10 @@ router.get('/image-status/:taskId', authenticate, async (req, res) => {
     let url = null;
     if (data.result) {
       if (typeof data.result === 'string') url = data.result;
+      else if (data.result.image_urls?.length) url = data.result.image_urls[0];
       else if (data.result.url) url = data.result.url;
       else if (data.result.image_url) url = data.result.image_url;
-      else if (data.result.images) url = data.result.images[0];
+      else if (data.result.images?.length) url = data.result.images[0];
       else if (Array.isArray(data.result)) url = data.result[0]?.url || data.result[0];
     }
 
