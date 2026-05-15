@@ -294,6 +294,63 @@ router.post('/chat', authenticate, async (req, res) => {
   }
 });
 
+// ── POST /api/ai/generate-video-nexus — Kling v3 через Nexus ──
+router.post('/generate-video-nexus', authenticate, async (req, res) => {
+  if (!NEXUS_KEY) return res.status(500).json({ error: 'Nexus API не настроен' });
+
+  const { prompt, model = 'kling-v3', duration = 5, aspect_ratio = '9:16', image_url } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
+
+  const deduct = await deductTokens(req.user.id, 'video', 'Генерация видео: ' + model);
+  if (!deduct.ok) return res.status(402).json({ error: deduct.error, balance: deduct.balance, cost: deduct.cost });
+
+  try {
+    const params = { model_name: model, prompt, duration, aspect_ratio };
+    if (image_url) params.image_url = image_url;
+
+    const resp = await fetch('https://nexusapi.dev/generate', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${NEXUS_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ params }),
+    });
+
+    const data = await resp.json();
+    if (!resp.ok || !data.task_id) {
+      await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
+      return res.status(400).json({ error: data.detail || data.error || 'Ошибка запуска' });
+    }
+
+    res.json({ task_id: data.task_id, balance: deduct.balance });
+  } catch(e) {
+    await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── GET /api/ai/video-status-nexus/:taskId ───────────────
+router.get('/video-status-nexus/:taskId', authenticate, async (req, res) => {
+  if (!NEXUS_KEY) return res.status(500).json({ error: 'Nexus API не настроен' });
+  try {
+    const resp = await fetch(`https://nexusapi.dev/tasks/${req.params.taskId}`, {
+      headers: { 'Authorization': `Bearer ${NEXUS_KEY}` },
+    });
+    const data = await resp.json();
+    console.log('Nexus video status:', JSON.stringify(data).slice(0, 300));
+
+    let url = null;
+    if (data.result) {
+      if (typeof data.result === 'string') url = data.result;
+      else if (data.result.video_url) url = data.result.video_url;
+      else if (data.result.url) url = data.result.url;
+      else if (data.result.video) url = data.result.video;
+    }
+
+    res.json({ status: data.status, url, error: data.error });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── POST /api/ai/generate-image — запуск генерации ──────
 router.post('/generate-image', authenticate, async (req, res) => {
   const { prompt, model = 'nano-banana-2', aspect_ratio = 'auto', image_size = '1K', image_urls } = req.body;
