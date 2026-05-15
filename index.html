@@ -3144,7 +3144,7 @@ async function twGenerateVideo(prompt, step) {
   const genRes = await api('POST', '/api/ai/generate-video', {
     prompt: prompt,
     model: step.model || 'kling-video/v1.6/standard/text-to-video',
-    duration: '5', ratio: '9:16',
+    duration: '5', ratio: selectedVideoRatio,
   });
 
   if (!genRes.ok) throw new Error(genRes.data?.error || 'Ошибка генерации');
@@ -3486,7 +3486,7 @@ async function genVideoScript(t, prompt, style) {
     prompt: engPrompt,
     model: 'kling-video/v1.5/pro/text-to-video',
     duration: '5',
-    ratio: '9:16',
+    ratio: selectedVideoRatio,
   });
 
   if (!genRes.ok) {
@@ -6148,7 +6148,7 @@ async function runKlingChat(t, prompt, msgId, attachedImages) {
   const duration = isVeo ? '8' : '5';
 
   const genRes = await api('POST', endpoint, {
-    prompt: engPrompt, model: modelId, duration, ratio: '9:16',
+    prompt: engPrompt, model: modelId, duration, ratio: selectedVideoRatio,
   });
 
   if (!genRes.ok) {
