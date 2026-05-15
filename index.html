@@ -3786,6 +3786,29 @@ async function openUserPage(userId) {
         followers: '0', following: '0',
         vids: [], playlists: []
       };
+      // Загружаем видео и данные пользователя
+      const [uRes, vRes2] = await Promise.all([
+        api('GET', '/api/users/' + u.id),
+        api('GET', '/api/videos/user/' + u.id),
+      ]);
+      if (uRes.ok && uRes.data.user) {
+        u.followers = String(uRes.data.user.followers_count || 0);
+        u.following = String(uRes.data.user.following_count || 0);
+        u.bio = uRes.data.user.bio || '';
+      }
+      if (vRes2.ok) {
+        u.vids = (vRes2.data.videos || []).map(v => ({
+          bg: 'linear-gradient(135deg,#0f2027,#2c5364)',
+          v: String(v.views||0),
+          file_url: v.file_url,
+          id: v.id,
+          title: v.title,
+          _serverVideo: v,
+        }));
+        // Refresh grid after videos loaded
+        window._curUser = u;
+        switchUserTab('vids');
+      }
     }
   }
 
@@ -3808,14 +3831,18 @@ async function openUserPage(userId) {
       };
       // Load their videos
       const vRes = await api('GET', '/api/videos/user/' + a.id);
-      if (vRes.ok) u.vids = (vRes.data.videos || []).map(v => ({
-        bg: 'linear-gradient(135deg,#0f2027,#2c5364)',
-        v: String(v.views||0),
-        file_url: v.file_url,
-        id: v.id,
-        title: v.title,
-        _serverVideo: v,
-      }));
+      if (vRes.ok) {
+        u.vids = (vRes.data.videos || []).map(v => ({
+          bg: 'linear-gradient(135deg,#0f2027,#2c5364)',
+          v: String(v.views||0),
+          file_url: v.file_url,
+          id: v.id,
+          title: v.title,
+          _serverVideo: v,
+        }));
+        window._curUser = u;
+        switchUserTab('vids');
+      }
     }
   }
 
@@ -3846,13 +3873,10 @@ async function openUserPage(userId) {
   btn.textContent = isFollowing ? '✓ Вы подписаны' : '+ Подписаться';
   btn._uid = userId;
 
-  // Store current user for tab switching
+  // Store current user and show page
   window._curUser = u;
-
-  // Reset to videos tab
-  switchUserTab('vids');
-
   document.getElementById('userPage').classList.add('open');
+  switchUserTab('vids');
 }
 
 function openUserVideo(idx) {
