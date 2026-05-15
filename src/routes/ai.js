@@ -294,41 +294,50 @@ router.post('/chat', authenticate, async (req, res) => {
   }
 });
 
-// ── POST /api/ai/generate-image ─────────────────────────
+// ── POST /api/ai/generate-image — запуск генерации ──────
 router.post('/generate-image', authenticate, async (req, res) => {
-  const { prompt, model = 'nano-banana-2' } = req.body;
+  const { prompt, model = 'nano-banana-2', aspect_ratio = 'auto', image_size = '1K' } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
-
   if (!NEXUS_KEY) return res.status(500).json({ error: 'Nexus API не настроен' });
 
   // Списываем токены
-  const deduct = await deductTokens(req.user.id, 'image', 'Генерация изображения: ' + model);
+  const deduct = await deductTokens(req.user.id, 'image', 'Генерация: ' + model);
   if (!deduct.ok) return res.status(402).json({ error: deduct.error, balance: deduct.balance, cost: deduct.cost });
 
   try {
-    console.log('Nexus image request:', model, prompt.slice(0,50));
-
-    const resp = await fetch('https://api.nexusapi.dev/v1/images/generations', {
+    const resp = await fetch('https://nexusapi.dev/generate', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${NEXUS_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, prompt, n: 1 }),
+      body: JSON.stringify({
+        params: { model_name: model, prompt, image_size, aspect_ratio }
+      }),
     });
 
-    const rawText = await resp.text();
-    console.log('Nexus response:', resp.status, rawText.slice(0, 300));
-
-    let data;
-    try { data = JSON.parse(rawText); } catch(e) { data = { error: rawText }; }
-
-    if (!resp.ok) {
+    const data = await resp.json();
+    if (!resp.ok || !data.task_id) {
       await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
-      return res.status(400).json({ error: data.error?.message || data.error || rawText.slice(0,100) });
+      return res.status(400).json({ error: data.detail || data.error || 'Ошибка запуска' });
     }
 
-    const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json || data.url;
-    res.json({ url: imageUrl, balance: deduct.balance });
+    res.json({ task_id: data.task_id, balance: deduct.balance });
   } catch(e) {
     await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── GET /api/ai/image-status/:taskId — статус задачи ────
+router.get('/image-status/:taskId', authenticate, async (req, res) => {
+  if (!NEXUS_KEY) return res.status(500).json({ error: 'Nexus API не настроен' });
+  try {
+    const resp = await fetch(`https://nexusapi.dev/tasks/${req.params.taskId}`, {
+      headers: { 'Authorization': `Bearer ${NEXUS_KEY}` },
+    });
+    const data = await resp.json();
+    // result содержит url изображения
+    const url = data.result?.url || data.result?.image_url || data.result;
+    res.json({ status: data.status, url: typeof url === 'string' ? url : null, error: data.error });
+  } catch(e) {
     res.status(500).json({ error: e.message });
   }
 });

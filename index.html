@@ -5877,13 +5877,13 @@ async function runPollinationsChat(t, prompt, msgId) {
   var isFree = selectedImageModel?.free || model === 'pollinations';
   var cost = selectedImageModel?.cost || 3;
 
-  // Проверяем токены
   if (!isFree && !await checkTokens(cost)) {
     updateChatMsg(t.id, msgId, { status: 'error', errorText: 'Недостаточно токенов' });
     return;
   }
 
   updateChatMsg(t.id, msgId, { statusText: '🎨 Рисуем...', progress: 20 });
+  renderChatHistory(t.id);
 
   try {
     var imageUrl;
@@ -5899,22 +5899,39 @@ async function runPollinationsChat(t, prompt, msgId) {
         img.src = imageUrl;
       });
     } else {
-      // Платно через Nexus API (бэкенд)
-      var res = await api('POST', '/api/ai/generate-image', { prompt, model });
-      if (!res.ok) throw new Error(res.data?.error || 'Ошибка генерации');
-      imageUrl = res.data.url;
-      // Обновляем баланс
-      if (res.data.balance !== undefined) {
-        if (userBilling) userBilling.balance = res.data.balance;
-        var el = document.getElementById('profileTokens');
-        if (el) el.textContent = res.data.balance + ' токенов';
+      // Nexus API — асинхронная генерация
+      var startRes = await api('POST', '/api/ai/generate-image', { prompt, model, aspect_ratio: '1:1', image_size: '1K' });
+      if (!startRes.ok) throw new Error(startRes.data?.error || 'Ошибка запуска');
+
+      var taskId = startRes.data.task_id;
+      if (startRes.data.balance !== undefined && userBilling) userBilling.balance = startRes.data.balance;
+
+      // Polling каждые 3 секунды, максимум 60 секунд
+      updateChatMsg(t.id, msgId, { statusText: '⏳ Генерируем...', progress: 40 });
+      renderChatHistory(t.id);
+
+      var maxAttempts = 20;
+      for (var i = 0; i < maxAttempts; i++) {
+        await new Promise(function(r){ setTimeout(r, 3000); });
+        var statusRes = await api('GET', '/api/ai/image-status/' + taskId);
+        if (!statusRes.ok) continue;
+
+        var status = statusRes.data.status;
+        var progress = Math.min(40 + i * 3, 90);
+        updateChatMsg(t.id, msgId, { statusText: '⏳ Генерируем...', progress });
+        renderChatHistory(t.id);
+
+        if (status === 'completed' && statusRes.data.url) {
+          imageUrl = statusRes.data.url;
+          break;
+        }
+        if (status === 'failed') throw new Error(statusRes.data.error || 'Генерация не удалась');
       }
+
+      if (!imageUrl) throw new Error('Превышено время ожидания');
     }
 
-    updateChatMsg(t.id, msgId, {
-      status: 'completed', type: 'image',
-      resultUrl: imageUrl, prompt,
-    });
+    updateChatMsg(t.id, msgId, { status: 'completed', type: 'image', resultUrl: imageUrl, prompt });
     saveChatHistory(t.id, getChatHistory(t.id).map(function(m) {
       return m.id === msgId ? { ...m, status: 'completed', type: 'image', resultUrl: imageUrl } : m;
     }));
