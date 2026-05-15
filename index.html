@@ -1119,6 +1119,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
           <button onclick="setVideoDuration(10)" id="msDur10" style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;">10с</button>
         </div>
       </div>
+      <div class="ms-divider"></div>
+      <div class="ms-row">
+        <div><div class="ms-label">Формат</div><div class="ms-value" id="msRatioVal">9:16</div></div>
+        <div style="display:flex;gap:4px;">
+          <button onclick="setVideoRatio('9:16')"  id="msRatio916" style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E;font-size:11px;cursor:pointer;">9:16</button>
+          <button onclick="setVideoRatio('16:9')" id="msRatio169" style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;">16:9</button>
+          <button onclick="setVideoRatio('1:1')"  id="msRatio11"  style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;">1:1</button>
+        </div>
+      </div>
     </div>
     <div class="ai-style-chips" id="aiStyleChips"></div>
     <div class="ai-chat-msgs" id="aiChatMsgs"></div>
@@ -2225,6 +2234,27 @@ let selectedProvider = VIDEO_MODELS[0];
 let selectedModel = VIDEO_MODELS[0].models[0]; // Kling v3
 let selectedMode = VIDEO_MODELS[0].modes[0];
 let selectedVideoDuration = 5;
+let selectedVideoRatio = '9:16';
+
+function setVideoRatio(ratio) {
+  selectedVideoRatio = ratio;
+  var val = document.getElementById('msRatioVal');
+  if (val) val.textContent = ratio;
+  ['9:16','16:9','1:1'].forEach(function(r) {
+    var id = 'msRatio' + r.replace(':','');
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    if (r === ratio) {
+      btn.style.border = '.5px solid rgba(242,193,46,.4)';
+      btn.style.background = 'rgba(242,193,46,.1)';
+      btn.style.color = '#F2C12E';
+    } else {
+      btn.style.border = '.5px solid rgba(255,255,255,.15)';
+      btn.style.background = 'transparent';
+      btn.style.color = 'rgba(255,255,255,.5)';
+    }
+  });
+}
 
 function setVideoDuration(secs) {
   selectedVideoDuration = secs;
@@ -6096,7 +6126,7 @@ async function runKlingChat(t, prompt, msgId, attachedImages) {
       videoImageUrl = 'data:' + _imgs[0].type + ';base64,' + _imgs[0].base64;
     }
     const startRes = await api('POST', '/api/ai/generate-video-nexus', {
-      prompt: engPrompt, model: modelId, duration: selectedVideoDuration, aspect_ratio: '9:16',
+      prompt: engPrompt, model: modelId, duration: selectedVideoDuration, aspect_ratio: selectedVideoRatio,
       image_url: videoImageUrl || undefined,
     });
     if (!startRes.ok) throw new Error(startRes.data?.error || 'Ошибка запуска');
