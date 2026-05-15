@@ -1937,12 +1937,17 @@ function playSlideVideo(idx) {
   if (!slide) return;
 
   const url = slide.dataset.videoUrl;
-  if (!url) {
-    // No video — remove player if present
+  if (!url || url.startsWith('/uploads/')) {
+    // No video or broken local path — skip to next
     if (sharedVideo && sharedVideo.parentNode) {
       sharedVideo.pause();
       sharedVideo.parentNode.removeChild(sharedVideo);
     }
+    // Auto skip broken videos after 1 sec
+    setTimeout(function() {
+      const feedData = serverVideos || VIDS;
+      if (idx < feedData.length - 1) fGoTo(idx + 1, false);
+    }, 1000);
     return;
   }
 
@@ -1965,6 +1970,14 @@ function playSlideVideo(idx) {
   }
   vid.muted = false;
   preloadNextVideo(idx);
+
+  vid.onerror = function() {
+    // Video failed to load — skip to next
+    const feedData = serverVideos || VIDS;
+    if (idx < feedData.length - 1) {
+      setTimeout(function() { fGoTo(idx + 1, false); }, 500);
+    }
+  };
 
   const tryPlay = () => {
     vid.play().catch(() => {
