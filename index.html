@@ -5126,7 +5126,9 @@ function openAiChat(tool) {
   // Show image attach button only for vision models (text tools with GPT)
   var attachBtn = document.getElementById('aiAttachBtn');
   if (attachBtn) {
-    attachBtn.style.display = (tool.rt === 'text' && selectedTextProvider?.provider === 'ChatGPT') ? 'flex' : 'none';
+    var showAttach = (tool.rt === 'text' && selectedTextProvider?.provider === 'ChatGPT') ||
+                   (tool.rt === 'image' && selectedImageModel?.id !== 'pollinations');
+  attachBtn.style.display = showAttach ? 'flex' : 'none';
   }
   // Clear attached images when opening new chat
   aiAttachedImages = [];
@@ -5906,7 +5908,14 @@ async function runPollinationsChat(t, prompt, msgId) {
       });
     } else {
       // Запускаем генерацию
-      var startRes = await api('POST', '/api/ai/generate-image', { prompt, model, aspect_ratio: '1:1', image_size: '1K' });
+      // Конвертируем прикреплённые фото в base64 URLs для Nexus
+      var imageUrls = (aiAttachedImages || []).map(function(img) {
+        return 'data:' + img.type + ';base64,' + img.base64;
+      });
+      var startRes = await api('POST', '/api/ai/generate-image', {
+        prompt, model, aspect_ratio: '1:1', image_size: '1K',
+        image_urls: imageUrls.length > 0 ? imageUrls : undefined,
+      });
       if (!startRes.ok) throw new Error(startRes.data?.error || 'Ошибка запуска');
 
       var taskId = startRes.data.task_id;

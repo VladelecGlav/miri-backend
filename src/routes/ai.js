@@ -296,7 +296,7 @@ router.post('/chat', authenticate, async (req, res) => {
 
 // ── POST /api/ai/generate-image — запуск генерации ──────
 router.post('/generate-image', authenticate, async (req, res) => {
-  const { prompt, model = 'nano-banana-2', aspect_ratio = 'auto', image_size = '1K' } = req.body;
+  const { prompt, model = 'nano-banana-2', aspect_ratio = 'auto', image_size = '1K', image_urls } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
   if (!NEXUS_KEY) return res.status(500).json({ error: 'Nexus API не настроен' });
 
@@ -309,7 +309,10 @@ router.post('/generate-image', authenticate, async (req, res) => {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${NEXUS_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        params: { model_name: model, prompt, image_size, aspect_ratio }
+        params: {
+          model_name: model, prompt, image_size, aspect_ratio,
+          ...(image_urls?.length ? { image_urls } : {}),
+        }
       }),
     });
 
