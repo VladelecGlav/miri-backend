@@ -2175,6 +2175,26 @@ const TEXT_MODELS = [
 // Tier icons
 const TIER_ICON = { pro: '🏆', fast: '⚡', web: '🌐' };
 
+// Модели для генерации изображений
+const IMAGE_MODELS = [
+  {
+    provider: 'Pollinations', providerIcon: '🌸', providerColor: '#4ade80',
+    models: [
+      { id: 'pollinations', name: 'Pollinations', tier: 'fast', free: true },
+    ],
+  },
+  {
+    provider: 'Nano Banana', providerIcon: '🍌', providerColor: '#facc15',
+    models: [
+      { id: 'nano-banana-2',  name: 'Nano Banana 2',  tier: 'fast', cost: 3 },
+      { id: 'nano-banana-pro', name: 'Nano Banana Pro', tier: 'pro',  cost: 3 },
+    ],
+  },
+];
+
+let selectedImageProvider = IMAGE_MODELS[0];
+let selectedImageModel    = IMAGE_MODELS[0].models[0];
+
 // Current text model selection
 let selectedTextProvider = TEXT_MODELS[0]; // ChatGPT default
 let selectedTextModel = TEXT_MODELS[0].models[0]; // GPT-5 Nano
@@ -2399,6 +2419,10 @@ function renderCreateContent(tabId) {
   }
   if (tabId === 'text') {
     openTextChat();
+    return;
+  }
+  if (tabId === 'design') {
+    openImageChat();
     return;
   }
   const all = TOOLS.filter(t => t.cat === tabId);
@@ -5114,10 +5138,16 @@ function openAiChat(tool) {
   var provBtnEl = document.getElementById('aiProviderBtn');
   var provPanelEl = document.getElementById('textProviderPanel');
   if (msEl) msEl.style.display = tool.rt === 'video' ? 'block' : 'none';
-  if (provBtnEl) provBtnEl.style.display = tool.rt === 'text' ? 'flex' : 'none';
+  if (provBtnEl) provBtnEl.style.display = (tool.rt === 'text' || tool.rt === 'image') ? 'flex' : 'none';
   if (provPanelEl) provPanelEl.style.display = 'none';
   if (tool.rt === 'video') initModelSelector();
+  if (tool.rt === 'image') {
+    updateImageProviderBtn();
+    // Update onclick for image provider button
+    if (provBtnEl) provBtnEl.onclick = toggleImageProviderPanel;
+  }
   if (tool.rt === 'text') {
+    if (provBtnEl) provBtnEl.onclick = toggleTextProviderPanel;
     // Pre-select model from tool config
     if (tool.model && tool.provider) {
       var pName = tool.provider === 'claude' ? 'Claude' :
@@ -5432,6 +5462,83 @@ function initTextModelSelector() {
 }
 
 // ── TEXT CHAT ─────────────────────────────────────────────
+// ── IMAGE CHAT ───────────────────────────────────────────
+function openImageChat() {
+  var imageTool = {
+    id: 'photo', n: 'Дизайн', e: '🖼',
+    rt: 'image', model: selectedImageModel?.id || 'pollinations',
+    provider: 'pollinations',
+    ph: 'Портрет в стиле аниме, розовые тона, детализированный',
+    styles: ['Фото', 'Живопись', 'Аниме', '3D', 'Пиксель-арт'],
+    status: 'live',
+  };
+  openAiChat(imageTool);
+}
+
+function toggleImageProviderPanel() {
+  var panel = document.getElementById('textProviderPanel');
+  if (!panel) return;
+  var isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) renderImageProviderPanel();
+}
+
+function renderImageProviderPanel() {
+  var tabsEl = document.getElementById('textProviderTabs');
+  var modelsEl = document.getElementById('textModelChips');
+  if (!tabsEl || !modelsEl) return;
+
+  tabsEl.innerHTML = '';
+  IMAGE_MODELS.forEach(function(p) {
+    var btn = document.createElement('button');
+    var isActive = p.provider === selectedImageProvider.provider;
+    btn.style.cssText = 'white-space:nowrap;padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;border:.5px solid ' +
+      (isActive ? 'rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E' : 'rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4)') + ';';
+    btn.textContent = p.providerIcon + ' ' + p.provider;
+    btn.onclick = (function(name){ return function(){ selectImageProvider(name); }; })(p.provider);
+    tabsEl.appendChild(btn);
+  });
+
+  modelsEl.innerHTML = '';
+  selectedImageProvider.models.forEach(function(m) {
+    var btn = document.createElement('button');
+    var isActive = m.id === (selectedImageModel && selectedImageModel.id);
+    var tierIcon = {pro:'🏆', fast:'⚡'}[m.tier] || '';
+    var costLabel = m.free ? ' · бесплатно' : (m.cost ? ' · ' + m.cost + ' 🪙' : '');
+    btn.style.cssText = 'white-space:nowrap;padding:5px 12px;border-radius:16px;font-size:11px;cursor:pointer;font-family:-apple-system,sans-serif;border:.5px solid ' +
+      (isActive ? 'rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E;font-weight:700' : 'rgba(255,255,255,.08);background:transparent;color:rgba(255,255,255,.5);font-weight:400') + ';';
+    btn.textContent = tierIcon + ' ' + m.name + costLabel;
+    btn.onclick = (function(id){ return function(){ selectImageModelChip(id); }; })(m.id);
+    modelsEl.appendChild(btn);
+  });
+}
+
+function selectImageProvider(name) {
+  var p = IMAGE_MODELS.find(function(x){ return x.provider === name; });
+  if (!p) return;
+  selectedImageProvider = p;
+  selectedImageModel = p.models[0];
+  updateImageProviderBtn();
+  renderImageProviderPanel();
+}
+
+function selectImageModelChip(modelId) {
+  var m = selectedImageProvider.models.find(function(x){ return x.id === modelId; });
+  if (!m) return;
+  selectedImageModel = m;
+  updateImageProviderBtn();
+  renderImageProviderPanel();
+  var modelEl = document.getElementById('aiChatModel');
+  if (modelEl) modelEl.textContent = selectedImageModel.name;
+}
+
+function updateImageProviderBtn() {
+  var btn = document.getElementById('aiProviderBtn');
+  if (!btn) return;
+  var costLabel = selectedImageModel?.free ? ' · бесплатно' : (selectedImageModel?.cost ? ' · ' + selectedImageModel.cost + ' 🪙' : '');
+  btn.textContent = selectedImageProvider.providerIcon + ' ' + selectedImageProvider.provider + ' · ' + (selectedImageModel?.name || '') + costLabel;
+}
+
 function openTextChat() {
   // Create a virtual text tool
   var textTool = {
@@ -5766,8 +5873,12 @@ async function checkTokens(cost) {
 }
 
 async function runPollinationsChat(t, prompt, msgId) {
-  // Проверяем токены (3 токена за изображение)
-  if (!await checkTokens(3)) {
+  var model = selectedImageModel?.id || 'pollinations';
+  var isFree = selectedImageModel?.free || model === 'pollinations';
+  var cost = selectedImageModel?.cost || 3;
+
+  // Проверяем токены (бесплатно для Pollinations)
+  if (!isFree && !await checkTokens(cost)) {
     updateChatMsg(t.id, msgId, { status: 'error', errorText: 'Недостаточно токенов' });
     return;
   }
