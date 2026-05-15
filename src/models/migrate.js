@@ -29,9 +29,12 @@ export async function migrate() {
       id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL, handle TEXT UNIQUE, avatar_url TEXT, bio TEXT,
       role TEXT NOT NULL DEFAULT 'user',
+      playlists TEXT DEFAULT '[]',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    -- Add playlists column if not exists (for existing DBs)
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS playlists TEXT DEFAULT '[]';
     CREATE TABLE IF NOT EXISTS videos (
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       title TEXT NOT NULL, description TEXT, file_path TEXT NOT NULL,

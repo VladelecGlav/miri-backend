@@ -4335,20 +4335,12 @@ async function loadMyProfile() {
     const [meRes, vidsRes, plsRes] = await Promise.all([
       api('GET', '/api/auth/me'),
       api('GET', '/api/videos/user/' + user.id),
-      api('GET', '/api/playlists/user/' + user.id),
+      api('GET', '/api/auth/playlists'),
     ]);
 
     // Load playlists
     if (plsRes.ok) {
-      userPlaylists = (plsRes.data.playlists || []).map(pl => ({
-        id: pl.id,
-        name: pl.name,
-        eps: pl.videos_count || 0,
-        badge: '',
-        covers: pl.covers || ['linear-gradient(135deg,#0f2027,#2c5364)'],
-        genre: '',
-        episodes: [],
-      }));
+      userPlaylists = plsRes.data.playlists || [];
     }
 
     if (meRes.ok) {
@@ -4827,6 +4819,8 @@ async function savePlCreator() {
     };
 
     userPlaylists = [...(userPlaylists || []), newPl];
+    // Сохраняем на сервер
+    await api('POST', '/api/auth/playlists', { playlists: userPlaylists });
     showFeedHint('✅ Плейлист создан!');
     closePlCreator();
     profTab('p');
