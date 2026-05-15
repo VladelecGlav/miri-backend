@@ -9,21 +9,30 @@ const router = Router();
 router.get('/user/:userId', optionalAuth, async (req, res) => {
   try {
     const rows = await dbAll(
-      `SELECT p.id, p.name, p.created_at,
-        COUNT(pv.id) as videos_count,
-        array_agg(v.file_path ORDER BY pv.position) FILTER (WHERE v.id IS NOT NULL) as covers
+      `SELECT p.id, p.name, p.created_at, COUNT(pv.id) as videos_count
        FROM playlists p
        LEFT JOIN playlist_videos pv ON pv.playlist_id = p.id
-       LEFT JOIN videos v ON v.id = pv.video_id
        WHERE p.user_id=$1 AND p.is_public=1
        GROUP BY p.id ORDER BY p.created_at DESC`,
       [req.params.userId]
     );
-    res.json({ playlists: rows.map(r => ({
-      id: r.id, name: r.name, created_at: r.created_at,
-      videos_count: parseInt(r.videos_count||0),
-      covers: (r.covers||[]).filter(Boolean).slice(0,3),
-    }))});
+
+    // Получаем обложки отдельно
+    const result = await Promise.all(rows.map(async r => {
+      const covers = await dbAll(
+        `SELECT v.file_path FROM playlist_videos pv
+         JOIN videos v ON v.id = pv.video_id
+         WHERE pv.playlist_id=$1 ORDER BY pv.position LIMIT 3`,
+        [r.id]
+      );
+      return {
+        id: r.id, name: r.name, created_at: r.created_at,
+        videos_count: parseInt(r.videos_count||0),
+        covers: covers.map(c => c.file_path).filter(Boolean),
+      };
+    }));
+
+    res.json({ playlists: result });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

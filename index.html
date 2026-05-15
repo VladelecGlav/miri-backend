@@ -3968,10 +3968,10 @@ function switchUserTab(tab) {
       grid.innerHTML = '<div class="pl-list" style="padding:8px 0;">' + pls.map(pl => `
         <div class="pl-card" onclick="openUserPlDetail('${pl.id}')">
           <div class="pl-cover-row">
-            <div class="pl-cover-main"><div class="pl-cover-bg" style="background:${pl.covers[0]}"></div></div>
+            <div class="pl-cover-main" style="position:relative;overflow:hidden;"><div class="pl-cover-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>${pl.covers[0] && pl.covers[0].startsWith('http') ? '<video src="'+pl.covers[0]+'" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"></video>' : ''}</div>
             <div class="pl-cover-side">
-              <div class="pl-cover-sm"><div class="pl-cover-bg" style="background:${pl.covers[1]||pl.covers[0]}"></div></div>
-              <div class="pl-cover-sm"><div class="pl-cover-bg" style="background:${pl.covers[2]||pl.covers[0]}"></div></div>
+              <div class="pl-cover-sm" style="position:relative;overflow:hidden;"><div class="pl-cover-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>${(pl.covers[1]||pl.covers[0]) && (pl.covers[1]||pl.covers[0]).startsWith('http') ? '<video src="'+(pl.covers[1]||pl.covers[0])+'" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"></video>' : ''}</div>
+              <div class="pl-cover-sm" style="position:relative;overflow:hidden;"><div class="pl-cover-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>${(pl.covers[2]||pl.covers[0]) && (pl.covers[2]||pl.covers[0]).startsWith('http') ? '<video src="'+(pl.covers[2]||pl.covers[0])+'" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"></video>' : ''}</div>
             </div>
           </div>
           <div class="pl-info">
@@ -4129,7 +4129,11 @@ function profTab(t){
         api('GET', '/api/playlists/user/' + uid2).then(function(res) {
           if (res.ok) {
             userPlaylists = (res.data.playlists || []).map(function(pl) {
-              return { id: pl.id, name: pl.name, eps: pl.videos_count||0, badge: '', covers: pl.covers||[], genre: '', episodes: [] };
+              return {
+                id: pl.id, name: pl.name, eps: pl.videos_count||0, badge: '',
+                covers: pl.covers||[], // URL видео для превью
+                genre: '', episodes: []
+              };
             });
           } else {
             userPlaylists = [];
@@ -4155,10 +4159,10 @@ function profTab(t){
       <div class="pl-list">${myPlaylists.map(pl=>`
         <div class="pl-card" onclick="openPlaylist('${pl.id}')">
           <div class="pl-cover-row">
-            <div class="pl-cover-main"><div class="pl-cover-bg" style="background:${pl.covers[0]}"></div></div>
+            <div class="pl-cover-main" style="position:relative;overflow:hidden;"><div class="pl-cover-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>${pl.covers[0] && pl.covers[0].startsWith('http') ? '<video src="'+pl.covers[0]+'" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"></video>' : ''}</div>
             <div class="pl-cover-side">
-              <div class="pl-cover-sm"><div class="pl-cover-bg" style="background:${pl.covers[1]||pl.covers[0]}"></div></div>
-              <div class="pl-cover-sm"><div class="pl-cover-bg" style="background:${pl.covers[2]||pl.covers[0]}"></div></div>
+              <div class="pl-cover-sm" style="position:relative;overflow:hidden;"><div class="pl-cover-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>${(pl.covers[1]||pl.covers[0]) && (pl.covers[1]||pl.covers[0]).startsWith('http') ? '<video src="'+(pl.covers[1]||pl.covers[0])+'" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"></video>' : ''}</div>
+              <div class="pl-cover-sm" style="position:relative;overflow:hidden;"><div class="pl-cover-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>${(pl.covers[2]||pl.covers[0]) && (pl.covers[2]||pl.covers[0]).startsWith('http') ? '<video src="'+(pl.covers[2]||pl.covers[0])+'" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0;"></video>' : ''}</div>
             </div>
           </div>
           <div class="pl-info">
