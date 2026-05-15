@@ -5687,7 +5687,7 @@ async function sendAiChat() {
       }
       await runClaudeChat(t, text, msgId);
     } else if (t.rt === 'image') {
-      await runPollinationsChat(t, text, msgId);
+      await runPollinationsChat(t, text, msgId, _attachedImagesCopy);
     } else if (t.rt === 'audio') {
       await runMusicChat(t, text, msgId);
     } else {
