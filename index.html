@@ -1109,6 +1109,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       </div>
       <div class="ms-dropdown" id="msModeDrop" style="display:none;"></div>
       <div id="msNote" style="display:none;font-size:11px;color:rgba(255,165,0,.8);padding:8px 14px;border-top:.5px solid rgba(255,255,255,.06);"></div>
+      <div class="ms-divider"></div>
+      <div class="ms-row">
+        <div><div class="ms-label">Длительность</div><div class="ms-value" id="msDurationVal">5 сек</div></div>
+        <div style="display:flex;gap:4px;">
+          <button onclick="setVideoDuration(3)"  id="msDur3"  style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;">3с</button>
+          <button onclick="setVideoDuration(5)"  id="msDur5"  style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(242,193,46,.4);background:rgba(242,193,46,.1);color:#F2C12E;font-size:11px;cursor:pointer;">5с</button>
+          <button onclick="setVideoDuration(7)"  id="msDur7"  style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;">7с</button>
+          <button onclick="setVideoDuration(10)" id="msDur10" style="padding:3px 8px;border-radius:6px;border:.5px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;">10с</button>
+        </div>
+      </div>
     </div>
     <div class="ai-style-chips" id="aiStyleChips"></div>
     <div class="ai-chat-msgs" id="aiChatMsgs"></div>
@@ -2201,29 +2211,39 @@ let selectedTextModel = TEXT_MODELS[0].models[0]; // GPT-5 Nano
 // AI Video Models registry
 const VIDEO_MODELS = [
   {
-    provider: 'Google Veo', providerIcon: '🎬', providerColor: '#4285f4',
-    models: [
-      { id: 'fal-ai/veo3.1/fast', name: 'Veo 3.1 Fast', desc: 'Быстро + аудио · fal.ai', price: '$0.15/сек', priceVal: 0.15 },
-      { id: 'fal-ai/veo3.1', name: 'Veo 3.1', desc: 'Топ качество · fal.ai', price: '$0.40/сек', priceVal: 0.40 },
-    ],
-    modes: ['Text to Video', 'Image to Video'],
-    note: 'Требует fal.ai API ключ',
-  },
-  {
     provider: 'Kling AI', providerIcon: '⚡', providerColor: '#6366f1',
     models: [
-      { id: 'kling-video/v1.6/standard/text-to-video', name: 'Kling v1.6 Standard', desc: 'Хорошее качество', price: '$0.084/сек', priceVal: 0.084 },
-      { id: 'kling-video/v1.6/pro/text-to-video', name: 'Kling v1.6 Pro', desc: 'Высокое качество', price: '$0.112/сек', priceVal: 0.112 },
-      { id: 'kling-video/v2.1/master/text-to-video', name: 'Kling v2.1 Master', desc: 'Топ качество', price: '$0.168/сек', priceVal: 0.168 },
+      { id: 'kling-v3',     name: 'Kling v3',     desc: '~30₽ · 5 сек · Топ качество', price: '6.1₽/сек', priceVal: 6.1 },
+      { id: 'kling-v3-pro', name: 'Kling v3 Pro', desc: '~40₽ · 5 сек · Максимум',     price: '8.1₽/сек', priceVal: 8.1 },
     ],
     modes: ['Text to Video', 'Image to Video'],
   },
 ];
 
 // Current selection
-let selectedProvider = VIDEO_MODELS[1]; // Kling — работает на aimlapi
-let selectedModel = VIDEO_MODELS[1].models[0]; // Kling v1.6 Standard — $0.084/сек
-let selectedMode = VIDEO_MODELS[1].modes[0];
+let selectedProvider = VIDEO_MODELS[0];
+let selectedModel = VIDEO_MODELS[0].models[0]; // Kling v3
+let selectedMode = VIDEO_MODELS[0].modes[0];
+let selectedVideoDuration = 5;
+
+function setVideoDuration(secs) {
+  selectedVideoDuration = secs;
+  var val = document.getElementById('msDurationVal');
+  if (val) val.textContent = secs + ' сек';
+  [3,5,7,10].forEach(function(d) {
+    var btn = document.getElementById('msDur' + d);
+    if (!btn) return;
+    if (d === secs) {
+      btn.style.border = '.5px solid rgba(242,193,46,.4)';
+      btn.style.background = 'rgba(242,193,46,.1)';
+      btn.style.color = '#F2C12E';
+    } else {
+      btn.style.border = '.5px solid rgba(255,255,255,.15)';
+      btn.style.background = 'transparent';
+      btn.style.color = 'rgba(255,255,255,.5)';
+    }
+  });
+}
 
 const TOOLS=[
   {id:'text',n:'Текст и сценарии',e:'✍️',d:'Сценарии, описания, код, хэштеги и многое другое',badge:'',bc:'',cat:'text',
@@ -6044,15 +6064,35 @@ async function runKlingChat(t, prompt, msgId) {
   updateChatMsg(t.id, msgId, { statusText: 'Отправляем в Kling... (5 сек · ~$0.42)', progress: 20 });
 
   // Use selected model — всё через единый endpoint
-  const modelId = selectedModel?.id || 'kling-video/v1/standard/text-to-video';
+  const modelId = selectedModel?.id || 'kling-v3';
   const isVeo = modelId.startsWith('google/');
+  const isNexus = ['kling-v3','kling-v3-pro','kling-o1','kling-o3'].includes(modelId);
+
+  // Nexus models (Kling v3 и другие)
+  if (isNexus) {
+    updateChatMsg(t.id, msgId, { statusText: '🎬 Запускаем Kling v3...', progress: 20 });
+    const startRes = await api('POST', '/api/ai/generate-video-nexus', {
+      prompt: engPrompt, model: modelId, duration: selectedVideoDuration, aspect_ratio: '9:16',
+    });
+    if (!startRes.ok) throw new Error(startRes.data?.error || 'Ошибка запуска');
+
+    const taskId = startRes.data.task_id;
+    if (startRes.data.balance !== undefined && userBilling) userBilling.balance = startRes.data.balance;
+
+    updateChatMsg(t.id, msgId, { statusText: '⏳ Генерируем видео...', progress: 25, genId: taskId, status: 'generating' });
+    renderChatHistory(t.id);
+    aiChatGenerating = false;
+    const sendBtn2 = document.getElementById('aiChatSendBtn');
+    if (sendBtn2) sendBtn2.disabled = false;
+    startNexusVideoPolling(t.id, msgId, taskId);
+    return;
+  }
+
   const endpoint = isVeo ? '/api/ai/generate-video-veo' : '/api/ai/generate-video';
   const duration = isVeo ? '8' : '5';
 
   const genRes = await api('POST', endpoint, {
-    prompt: engPrompt,
-    model: modelId,
-    duration, ratio: '9:16',
+    prompt: engPrompt, model: modelId, duration, ratio: '9:16',
   });
 
   if (!genRes.ok) {
@@ -6064,18 +6104,52 @@ async function runKlingChat(t, prompt, msgId) {
 
   const genId = genRes.data.generation_id;
 
-  // Save genId so we can resume after page reload
   updateChatMsg(t.id, msgId, {
     statusText: 'Видео генерируется (~3-5 мин)...', progress: 25,
     genId, status: 'generating'
   });
   renderChatHistory(t.id);
 
-  // Start polling — re-enable send button now (polling is async)
   aiChatGenerating = false;
   const sendBtn2 = document.getElementById('aiChatSendBtn');
   if (sendBtn2) sendBtn2.disabled = false;
   startPolling(t.id, msgId, genId);
+}
+
+function startNexusVideoPolling(toolId, msgId, taskId) {
+  var attempts = 0;
+  var maxAttempts = 60; // 5 минут
+  var hints = ['Рисуем кадры...', 'Добавляем движение...', 'Финализируем...', 'Почти готово...'];
+
+  var interval = setInterval(async function() {
+    attempts++;
+    var pct = Math.min(25 + (attempts / maxAttempts) * 65, 90);
+    updateChatMsg(toolId, msgId, {
+      statusText: '⏳ ' + (hints[Math.floor(attempts/15) % hints.length] || 'Генерируем...'),
+      progress: pct,
+    });
+    renderChatHistory(toolId);
+
+    var res = await api('GET', '/api/ai/video-status-nexus/' + taskId);
+    if (!res.ok) return;
+
+    if (res.data.status === 'completed' && res.data.url) {
+      clearInterval(interval);
+      updateChatMsg(toolId, msgId, { status: 'completed', type: 'video', resultUrl: res.data.url });
+      saveChatHistory(toolId, getChatHistory(toolId).map(function(m) {
+        return m.id === msgId ? { ...m, status: 'completed', type: 'video', resultUrl: res.data.url } : m;
+      }));
+      renderChatHistory(toolId);
+    } else if (res.data.status === 'failed') {
+      clearInterval(interval);
+      updateChatMsg(toolId, msgId, { status: 'error', errorText: res.data.error || 'Генерация не удалась' });
+      renderChatHistory(toolId);
+    } else if (attempts >= maxAttempts) {
+      clearInterval(interval);
+      updateChatMsg(toolId, msgId, { status: 'error', errorText: 'Превышено время ожидания' });
+      renderChatHistory(toolId);
+    }
+  }, 5000);
 }
 
 function startPolling(toolId, msgId, genId) {
