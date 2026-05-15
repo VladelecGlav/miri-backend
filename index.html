@@ -2149,76 +2149,17 @@ function showFeedHint(icon) {
 // AI Text Models registry
 const TEXT_MODELS = [
   {
-    provider: 'ChatGPT', providerIcon: '✦', providerColor: '#10a37f',
-    models: [
-      { id: 'gpt-4.1', name: 'GPT-4.1', tier: 'fast' },
-      { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', tier: 'fast' },
-      { id: 'gpt-4.1-nano', name: 'GPT-4.1 Nano', tier: 'fast' },
-      { id: 'gpt-5.2', name: 'GPT 5.2', tier: 'pro' },
-      { id: 'gpt-5.3', name: 'GPT 5.3', tier: 'pro' },
-      { id: 'gpt-5.1', name: 'GPT 5.1', tier: 'pro' },
-      { id: 'gpt-5.4', name: 'GPT 5.4', tier: 'pro' },
-      { id: 'gpt-5.5', name: 'GPT 5.5', tier: 'pro' },
-      { id: 'gpt-5.4-pro', name: 'GPT 5.4 Pro', tier: 'pro' },
-      { id: 'gpt-5', name: 'GPT 5', tier: 'pro' },
-      { id: 'gpt-5-mini', name: 'GPT-5 Mini', tier: 'fast' },
-      { id: 'gpt-5-nano', name: 'GPT-5 Nano', tier: 'fast' },
-      { id: 'gpt-web', name: 'GPT Web', tier: 'web' },
-    ],
-  },
-  {
     provider: 'Claude', providerIcon: '✳', providerColor: '#d97706',
     models: [
       { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4.6', tier: 'fast' },
-      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', tier: 'pro' },
-      { id: 'claude-sonnet-4-5-20251001', name: 'Claude 4.5 Sonnet', tier: 'fast' },
-      { id: 'claude-opus-4-5', name: 'Claude 4.5 Opus', tier: 'pro' },
-      { id: 'claude-opus-4-6', name: 'Claude 4.6 Opus', tier: 'pro' },
-      { id: 'claude-opus-4-1', name: 'Claude 4.1 Opus', tier: 'pro' },
-      { id: 'claude-sonnet-4-6', name: 'Claude 4.6 Sonnet', tier: 'fast' },
-      { id: 'claude-opus-4-7', name: 'Claude 4.7 Opus', tier: 'pro' },
-    ],
-  },
-  {
-    provider: 'Gemini', providerIcon: '✦', providerColor: '#4285f4',
-    models: [
-      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro NEW', tier: 'pro' },
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', tier: 'fast' },
-      { id: 'gemini-3-pro', name: 'Gemini 3 Pro', tier: 'pro' },
-      { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', tier: 'pro' },
-    ],
-  },
-  {
-    provider: 'Grok', providerIcon: '✗', providerColor: '#e5e7eb',
-    models: [
-      { id: 'grok-4.3', name: 'Grok 4.3', tier: 'pro' },
-      { id: 'grok-4', name: 'Grok 4', tier: 'pro' },
-      { id: 'grok-3', name: 'Grok 3', tier: 'fast' },
-      { id: 'grok-3-reasoner', name: 'Grok 3 Reasoner', tier: 'fast' },
-      { id: 'grok-3-deep-search', name: 'Grok 3 Deep Search', tier: 'web' },
+      { id: 'claude-opus-4-20250514',   name: 'Claude Opus 4',     tier: 'pro'  },
     ],
   },
   {
     provider: 'DeepSeek', providerIcon: '◎', providerColor: '#3b82f6',
     models: [
-      { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', tier: 'pro' },
       { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3', tier: 'fast' },
-    ],
-  },
-  {
-    provider: 'Perplexity', providerIcon: '◈', providerColor: '#06b6d4',
-    models: [
-      { id: 'perplexity/sonar-pro', name: 'Perplexity Sonar Pro', tier: 'fast' },
-      { id: 'perplexity/sonar-deep-research', name: 'Perplexity Sonar Deep Research', tier: 'pro' },
-      { id: 'perplexity/sonar', name: 'Perplexity Sonar', tier: 'web' },
-    ],
-  },
-  {
-    provider: 'Qwen', providerIcon: '❋', providerColor: '#7c3aed',
-    models: [
-      { id: 'qwen/qwen3-max-thinking', name: 'Qwen 3 Max Thinking', tier: 'pro' },
-      { id: 'qwen/qwen3', name: 'Qwen 3', tier: 'fast' },
-      { id: 'qwen/qwen3-thinking', name: 'Qwen 3 Thinking', tier: 'fast' },
+      { id: 'deepseek/deepseek-r1',   name: 'DeepSeek R1', tier: 'pro'  },
     ],
   },
 ];
@@ -2227,8 +2168,8 @@ const TEXT_MODELS = [
 const TIER_ICON = { pro: '🏆', fast: '⚡', web: '🌐' };
 
 // Current text model selection
-let selectedTextProvider = TEXT_MODELS[1]; // Claude default
-let selectedTextModel = TEXT_MODELS[1].models[0]; // Claude Sonnet 4.6
+let selectedTextProvider = TEXT_MODELS[0]; // Claude default
+let selectedTextModel = TEXT_MODELS[0].models[0]; // Claude Sonnet 4.6
 
 // AI Video Models registry
 const VIDEO_MODELS = [
@@ -2261,9 +2202,7 @@ const TOOLS=[
   {id:'text',n:'Текст и сценарии',e:'✍️',d:'Сценарии, описания, код, хэштеги и многое другое',badge:'',bc:'',cat:'text',
    model:'claude-sonnet-4-20250514',provider:'claude',modelIcon:'A',modelColor:'#F2C12E',status:'live',
    bg:'linear-gradient(135deg,#1e1b4b,#4338ca)',styles:['Сценарий','Описание','Хэштеги','Субтитры'],ph:'Напиши сценарий для 30-секундного видео про нейронные пейзажи',rt:'text'},
-  {id:'text_gpt',n:'ChatGPT',e:'🟢',d:'GPT-4.1 от OpenAI — отлично для кода и анализа',badge:'',bc:'',cat:'text',
-   model:'gpt-4.1',provider:'chatgpt',modelIcon:'G',modelColor:'#10a37f',status:'live',
-   bg:'linear-gradient(135deg,#064e3b,#10a37f)',styles:['Сценарий','Код','Анализ','Перевод'],ph:'Напиши подробный сценарий с раскадровкой для 60-секундного ролика',rt:'text'},
+
   {id:'photo',n:'Фото из текста',e:'🖼',d:'Создаёт изображение любого стиля',badge:'Бесплатно',bc:'tb-new',cat:'design',
    model:'Pollinations AI',modelIcon:'P',modelColor:'#4ade80',status:'live',
    bg:'linear-gradient(135deg,#2d1b69,#534AB7)',styles:['Фото','Живопись','Аниме','3D','Пиксель-арт'],ph:'Портрет в стиле японской живописи, розовые тона',rt:'image'},
