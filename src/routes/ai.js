@@ -5,6 +5,7 @@ import { dbGet, dbRun } from '../models/migrate.js';
 
 const router = Router();
 const AIMLAPI_KEY = process.env.AIMLAPI_KEY;
+const NEXUS_KEY   = process.env.NEXUS_API_KEY;
 const BASE = 'https://api.aimlapi.com/v2';
 
 // Стоимость генераций в токенах
@@ -298,7 +299,6 @@ router.post('/generate-image', authenticate, async (req, res) => {
   const { prompt, model = 'nano-banana-2' } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
 
-  const NEXUS_KEY = process.env.NEXUS_API_KEY;
   if (!NEXUS_KEY) return res.status(500).json({ error: 'Nexus API не настроен' });
 
   // Списываем токены

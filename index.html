@@ -5877,19 +5877,54 @@ async function runPollinationsChat(t, prompt, msgId) {
   var isFree = selectedImageModel?.free || model === 'pollinations';
   var cost = selectedImageModel?.cost || 3;
 
-  // Проверяем токены (бесплатно для Pollinations)
+  // Проверяем токены
   if (!isFree && !await checkTokens(cost)) {
     updateChatMsg(t.id, msgId, { status: 'error', errorText: 'Недостаточно токенов' });
     return;
   }
-  updateChatMsg(t.id, msgId, { statusText: 'Рисуем...', progress: 20 });
-  const styleMap = { 'Аниме': 'anime style', 'Живопись': 'oil painting', '3D': '3D render', 'Пиксель-арт': 'pixel art', 'Фото': 'photorealistic' };
-  const styleStr = styleMap[aiChatStyle] || 'photorealistic';
-  const seed = Math.floor(Math.random()*99999);
-  const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', ' + styleStr + ', high quality')}?width=512&height=512&seed=${seed}&nologo=true`;
-  updateChatMsg(t.id, msgId, { status: 'completed', type: 'image', resultUrl: imgUrl, progress: 100 });
-  renderChatHistory(t.id);
+
+  updateChatMsg(t.id, msgId, { statusText: '🎨 Рисуем...', progress: 20 });
+
+  try {
+    var imageUrl;
+
+    if (isFree || model === 'pollinations') {
+      // Бесплатно через Pollinations
+      var encoded = encodeURIComponent(prompt);
+      imageUrl = 'https://image.pollinations.ai/prompt/' + encoded + '?width=1080&height=1080&nologo=true&seed=' + Math.floor(Math.random()*99999);
+      await new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+    } else {
+      // Платно через Nexus API (бэкенд)
+      var res = await api('POST', '/api/ai/generate-image', { prompt, model });
+      if (!res.ok) throw new Error(res.data?.error || 'Ошибка генерации');
+      imageUrl = res.data.url;
+      // Обновляем баланс
+      if (res.data.balance !== undefined) {
+        if (userBilling) userBilling.balance = res.data.balance;
+        var el = document.getElementById('profileTokens');
+        if (el) el.textContent = res.data.balance + ' токенов';
+      }
+    }
+
+    updateChatMsg(t.id, msgId, {
+      status: 'completed', type: 'image',
+      resultUrl: imageUrl, prompt,
+    });
+    saveChatHistory(t.id, getChatHistory(t.id).map(function(m) {
+      return m.id === msgId ? { ...m, status: 'completed', type: 'image', resultUrl: imageUrl } : m;
+    }));
+    renderChatHistory(t.id);
+  } catch(e) {
+    updateChatMsg(t.id, msgId, { status: 'error', errorText: e.message });
+    renderChatHistory(t.id);
+  }
 }
+
 
 async function runMusicChat(t, prompt, msgId) {
   updateChatMsg(t.id, msgId, { statusText: 'Описываем трек...', progress: 30 });
