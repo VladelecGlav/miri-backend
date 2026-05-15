@@ -143,23 +143,5 @@ router.patch('/me', authenticate, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/auth/playlists
-router.get('/playlists', authenticate, async (req, res) => {
-  try {
-    const user = await dbGet('SELECT playlists FROM users WHERE id=$1', [req.user.id]);
-    const playlists = (() => { try { return JSON.parse(user?.playlists || '[]'); } catch { return []; } })();
-    res.json({ playlists });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// POST /api/auth/playlists
-router.post('/playlists', authenticate, async (req, res) => {
-  const { playlists } = req.body;
-  if (!Array.isArray(playlists)) return res.status(400).json({ error: 'playlists должен быть массивом' });
-  try {
-    await dbRun('UPDATE users SET playlists=$1 WHERE id=$2', [JSON.stringify(playlists), req.user.id]);
-    res.json({ playlists });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
 
 export default router;
