@@ -305,6 +305,7 @@ router.post('/generate-image', authenticate, async (req, res) => {
   if (!deduct.ok) return res.status(402).json({ error: deduct.error, balance: deduct.balance, cost: deduct.cost });
 
   try {
+    console.log('generate-image req:', { model, prompt: prompt?.slice(0,30), image_urls_count: image_urls?.length || 0 });
     const resp = await fetch('https://nexusapi.dev/generate', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${NEXUS_KEY}`, 'Content-Type': 'application/json' },

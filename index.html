@@ -5162,10 +5162,13 @@ function openAiChat(tool) {
   }
 
 
-  // Style chips — hide for text tool
+  // Style chips
   const chips = document.getElementById('aiStyleChips');
   if (chips) {
     if (tool.rt === 'text') {
+      chips.innerHTML = '';
+      chips.style.display = 'none';
+    } else if (tool.rt === 'image') {
       chips.innerHTML = '';
       chips.style.display = 'none';
     } else {
@@ -5467,15 +5470,18 @@ function initTextModelSelector() {
 
 // ── TEXT CHAT ─────────────────────────────────────────────
 // ── IMAGE CHAT ───────────────────────────────────────────
+let selectedImageStyle = null;
+
 function openImageChat() {
   var imageTool = {
     id: 'photo', n: 'Дизайн', e: '🖼',
-    rt: 'image', model: selectedImageModel?.id || 'pollinations',
-    provider: 'pollinations',
-    ph: 'Портрет в стиле аниме, розовые тона, детализированный',
-    styles: ['Фото', 'Живопись', 'Аниме', '3D', 'Пиксель-арт'],
+    rt: 'image', model: selectedImageModel?.id || 'nano-banana-2',
+    provider: 'nano-banana',
+    ph: 'Опиши что хочешь создать...',
+    styles: [],
     status: 'live',
   };
+  selectedImageStyle = null;
   openAiChat(imageTool);
 }
 
@@ -5915,9 +5921,13 @@ async function runPollinationsChat(t, prompt, msgId, attachedImages) {
       var imageUrls = (attachedImages || aiAttachedImages || []).map(function(img) {
         return 'data:' + img.type + ';base64,' + img.base64;
       });
+      var hasImages = imageUrls.length > 0;
+      console.log('Sending to generate-image, images:', imageUrls.length, imageUrls.map(function(u){ return u.slice(0,30); }));
       var startRes = await api('POST', '/api/ai/generate-image', {
-        prompt, model, aspect_ratio: '1:1', image_size: '1K',
-        image_urls: imageUrls.length > 0 ? imageUrls : undefined,
+        prompt, model,
+        aspect_ratio: hasImages ? 'auto' : '1:1',
+        image_size: '1K',
+        image_urls: hasImages ? imageUrls : undefined,
       });
       if (!startRes.ok) throw new Error(startRes.data?.error || 'Ошибка запуска');
 
