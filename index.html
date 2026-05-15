@@ -4084,21 +4084,24 @@ async function openPlaylist(id) {
     return;
   }
 
-  list.innerHTML = videos.map(function(v, i) {
-    return '<div class="pl-ep-row" onclick="openPlaylistVideo('' + id + '',' + i + ')" style="cursor:pointer;">' +
-      '<div class="pl-ep-thumb" style="position:relative;overflow:hidden;">' +
-        '<div class="pl-ep-thumb-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>' +
-        (v.file_path ? '<video src="' + v.file_path + '" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>' : '') +
-        '<div class="pl-ep-play"><div class="pl-ep-play-ico"><span style="font-size:13px;color:#F2C12E;margin-left:2px;">▶</span></div></div>' +
-      '</div>' +
+  list.innerHTML = '';
+  videos.forEach(function(v, i) {
+    var row = document.createElement('div');
+    row.className = 'pl-ep-row';
+    row.style.cursor = 'pointer';
+    (function(idx){ row.onclick = function(){ openPlaylistVideo(id, idx); }; })(i);
+    var thumbHtml = '<div class="pl-ep-thumb" style="position:relative;overflow:hidden;"><div class="pl-ep-thumb-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>';
+    if (v.file_path) thumbHtml += '<video src="' + v.file_path + '" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>';
+    thumbHtml += '<div class="pl-ep-play"><div class="pl-ep-play-ico"><span style="font-size:13px;color:#F2C12E;margin-left:2px;">&#9654;</span></div></div></div>';
+    row.innerHTML = thumbHtml +
       '<div class="pl-ep-info">' +
         '<div class="pl-ep-num">ЭПИЗОД ' + (i+1) + '</div>' +
         '<div class="pl-ep-title">' + (v.title||'Видео') + '</div>' +
         '<div class="pl-ep-desc">' + (v.description||'') + '</div>' +
-        '<div class="pl-ep-dur">👁 ' + (v.views||0) + '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
+        '<div class="pl-ep-dur">&#128065; ' + (v.views||0) + '</div>' +
+      '</div>';
+    list.appendChild(row);
+  });
 
   // Сохраняем видео для воспроизведения
   det._videos = videos;
