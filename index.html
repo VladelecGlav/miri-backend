@@ -4054,30 +4054,79 @@ function toggleUserFollow() {
 
 let openPlaylistId = null;
 
-function openPlaylist(id) {
-  const pl = PLAYLISTS.find(p => p.id === id);
-  if (!pl) return;
+async function openPlaylist(id) {
   openPlaylistId = id;
   const det = document.getElementById('plDetail');
   if (!det) return;
-  document.getElementById('plDetTitle').textContent = pl.name;
-  document.getElementById('plDetHeroBg').style.background = pl.bg;
-  document.getElementById('plDetHeroName').textContent = pl.name;
-  document.getElementById('plDetHeroMeta').innerHTML = `<span>${pl.episodes.length} эп.</span><span>·</span><span>${pl.genre}</span>`;
-  const list = document.getElementById('plEpsList');
-  list.innerHTML = pl.episodes.map(ep => `
-    <div class="pl-ep-row" onclick="navTo('feed')">
-      <div class="pl-ep-thumb"><div class="pl-ep-thumb-bg" style="background:${ep.bg}"></div>
-        <div class="pl-ep-play"><div class="pl-ep-play-ico"><span style="font-size:13px;color:#F2C12E;margin-left:2px;">▶</span></div></div>
-      </div>
-      <div class="pl-ep-info">
-        <div class="pl-ep-num">ЭПИЗОД ${ep.n}</div>
-        <div class="pl-ep-title">${ep.t}</div>
-        <div class="pl-ep-desc">${ep.d}</div>
-        <div class="pl-ep-dur">👁 ${ep.views} · ${ep.dur}</div>
-      </div>
-    </div>`).join('');
+
+  // Показываем загрузку
+  document.getElementById('plDetTitle').textContent = 'Загрузка...';
+  document.getElementById('plDetHeroName').textContent = '';
+  document.getElementById('plDetHeroMeta').textContent = '';
+  document.getElementById('plEpsList').innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.3);">⏳</div>';
   det.classList.add('open');
+
+  // Загружаем с сервера
+  const res = await api('GET', '/api/playlists/' + id);
+  if (!res.ok) { document.getElementById('plDetTitle').textContent = 'Ошибка'; return; }
+
+  const pl = res.data.playlist;
+  const videos = res.data.videos || [];
+
+  document.getElementById('plDetTitle').textContent = pl.name;
+  document.getElementById('plDetHeroBg').style.background = 'linear-gradient(135deg,#0f2027,#2c5364)';
+  document.getElementById('plDetHeroName').textContent = pl.name;
+  document.getElementById('plDetHeroMeta').innerHTML = '<span>' + videos.length + ' видео</span>';
+
+  const list = document.getElementById('plEpsList');
+  if (videos.length === 0) {
+    list.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,.3);">Нет видео</div>';
+    return;
+  }
+
+  list.innerHTML = videos.map(function(v, i) {
+    return '<div class="pl-ep-row" onclick="openPlaylistVideo('' + id + '',' + i + ')" style="cursor:pointer;">' +
+      '<div class="pl-ep-thumb" style="position:relative;overflow:hidden;">' +
+        '<div class="pl-ep-thumb-bg" style="background:linear-gradient(135deg,#0f2027,#2c5364)"></div>' +
+        (v.file_path ? '<video src="' + v.file_path + '" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=0.5" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>' : '') +
+        '<div class="pl-ep-play"><div class="pl-ep-play-ico"><span style="font-size:13px;color:#F2C12E;margin-left:2px;">▶</span></div></div>' +
+      '</div>' +
+      '<div class="pl-ep-info">' +
+        '<div class="pl-ep-num">ЭПИЗОД ' + (i+1) + '</div>' +
+        '<div class="pl-ep-title">' + (v.title||'Видео') + '</div>' +
+        '<div class="pl-ep-desc">' + (v.description||'') + '</div>' +
+        '<div class="pl-ep-dur">👁 ' + (v.views||0) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // Сохраняем видео для воспроизведения
+  det._videos = videos;
+}
+
+async function openPlaylistVideo(plId, idx) {
+  const det = document.getElementById('plDetail');
+  const videos = det?._videos || [];
+  if (!videos.length) return;
+
+  // Открываем видео в ленте начиная с выбранного
+  const ordered = [...videos.slice(idx), ...videos.slice(0, idx)];
+  serverVideos = ordered.map(function(v) {
+    return {
+      t: v.title||'Видео', a: '', av: 'M', avBg: '#F2C12E',
+      id: v.id, bg: 'linear-gradient(135deg,#0f2027,#2c5364)',
+      lk: String(v.likes_count||0), cm: String(v.comments_count||0),
+      tg: '', fileUrl: v.file_path, _serverVideo: v,
+    };
+  });
+
+  closePlaylist();
+  _skipFeedReload = true;
+  navTo('feed');
+  requestAnimationFrame(function() {
+    buildFeed();
+    requestAnimationFrame(function() { fGoTo(0, false); });
+  });
 }
 
 function closePlaylist() {
