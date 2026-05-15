@@ -980,7 +980,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       </button>
       <div class="p-tabs">
         <div class="p-tab active" onclick="profTab('v')"><span>⊞</span>Видео</div>
-
+        <div class="p-tab" onclick="profTab('p')"><span>🎬</span>Плейлисты</div>
         <div class="p-tab" onclick="profTab('l')"><span>♥</span>Лайки</div>
         <div class="p-tab" onclick="profTab('s')"><span>👥</span>Подписки</div>
       </div>
@@ -1029,6 +1029,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       </div>
       <div style="display:flex;border-bottom:.5px solid rgba(255,255,255,.08);margin:0 0 4px;">
         <div class="u-tab on" id="uTabVids" onclick="switchUserTab('vids')" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.35);cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;">⊞ Видео</div>
+        <div class="u-tab" id="uTabPls" onclick="switchUserTab('pls')" style="flex:1;padding:10px 0;text-align:center;font-size:13px;font-weight:600;color:rgba(255,255,255,.35);cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;">🎬 Плейлисты</div>
 
       </div>
       <div id="userVidsGrid" style="padding:8px 16px;"></div>
@@ -4087,7 +4088,7 @@ function closePlaylist() {
 
 function profTab(t){
   editModeOn = false; // reset edit mode on tab switch
-  document.querySelectorAll('.p-tab').forEach((el,i)=>el.classList.toggle('active',['v','l','s'][i]===t));
+  document.querySelectorAll('.p-tab').forEach((el,i)=>el.classList.toggle('active',['v','p','l','s'][i]===t));
   const c=document.getElementById('pContent');
   if(t==='v'){
     const myVids = userVideos || [];
@@ -4786,37 +4787,22 @@ async function savePlCreator() {
   const btn = document.getElementById('plCrSaveBtn');
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
 
-  // Собираем эпизоды
   const selectedIds = [...(plCrSelectedVids || new Set())];
-  const myVids = userVideos || [];
-  const episodes = selectedIds.map((id, i) => {
-    const v = myVids.find(x => x.id === id);
-    return v ? { n: i+1, t: v.title||'Видео', d: v.description||'', bg: 'linear-gradient(135deg,#0f2027,#2c5364)', dur: '', v: String(v.views||0), file_url: v.file_url, id: v.id } : null;
-  }).filter(Boolean);
 
-  const newPl = {
-    id: 'pl_' + Date.now(),
+  const res = await api('POST', '/api/playlists', {
     name,
-    eps: episodes.length,
-    badge: 'new',
-    covers: episodes.slice(0,3).map(e => e.bg).concat(['linear-gradient(135deg,#0f2027,#2c5364)']).slice(0,3),
-    genre: '',
-    episodes,
-  };
+    video_ids: selectedIds,
+  });
 
-  // Добавляем в список и сохраняем
-  userPlaylists = [...(userPlaylists || []), newPl];
-
-  // Сохраняем на сервер
-  const res = await api('POST', '/api/auth/playlists', { playlists: userPlaylists });
   if (res.ok) {
-    showFeedHint('✅ Плейлист сохранён!');
+    showFeedHint('✅ Плейлист создан!');
+    userPlaylists = null; // сбрасываем кэш
+    closePlCreator();
+    profTab('p'); // переходим на вкладку плейлистов
   } else {
-    showFeedHint('Ошибка сохранения, но плейлист добавлен локально');
+    showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+    if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
   }
-
-  closePlCreator();
-  profTab('v');
 }
 
 
