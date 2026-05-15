@@ -210,7 +210,7 @@ router.get('/feed', optionalAuth, async (req, res) => {
     let seenIds = [];
     if (userId) {
       const seen = await dbAll(
-        `SELECT DISTINCT video_id FROM video_views WHERE user_id=$1 ORDER BY created_at DESC LIMIT 200`,
+        `SELECT video_id FROM video_views WHERE user_id=$1 GROUP BY video_id LIMIT 200`,
         [userId]
       );
       seenIds = seen.map(r => r.video_id);
