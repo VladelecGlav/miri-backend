@@ -306,20 +306,26 @@ router.post('/generate-image', authenticate, async (req, res) => {
   if (!deduct.ok) return res.status(402).json({ error: deduct.error, balance: deduct.balance, cost: deduct.cost });
 
   try {
+    console.log('Nexus image request:', model, prompt.slice(0,50));
+
     const resp = await fetch('https://api.nexusapi.dev/v1/images/generations', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${NEXUS_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, prompt, n: 1 }),
     });
 
-    const data = await resp.json();
+    const rawText = await resp.text();
+    console.log('Nexus response:', resp.status, rawText.slice(0, 300));
+
+    let data;
+    try { data = JSON.parse(rawText); } catch(e) { data = { error: rawText }; }
+
     if (!resp.ok) {
-      // Возвращаем токены при ошибке
       await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
-      return res.status(400).json({ error: data.error?.message || 'Ошибка генерации' });
+      return res.status(400).json({ error: data.error?.message || data.error || rawText.slice(0,100) });
     }
 
-    const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json;
+    const imageUrl = data.data?.[0]?.url || data.data?.[0]?.b64_json || data.url;
     res.json({ url: imageUrl, balance: deduct.balance });
   } catch(e) {
     await dbRun('UPDATE token_balance SET balance=balance+$1 WHERE user_id=$2', [deduct.cost, req.user.id]);
