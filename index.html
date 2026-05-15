@@ -4778,60 +4778,47 @@ function pickPlCover() {
 }
 
 async function savePlCreator() {
-  const name = document.getElementById('plCrName')?.value.trim();
-  console.log('savePlCreator called, name:', name, 'token:', !!API_TOKEN);
-  if (!name) return;
+  const nameEl = document.getElementById('plCrName');
+  const name = nameEl ? nameEl.value.trim() : '';
+  if (!name) { showFeedHint('Введи название'); return; }
+  if (!API_TOKEN) { showFeedHint('Войди в аккаунт'); return; }
 
   const btn = document.getElementById('plCrSaveBtn');
-  if (btn) { btn.textContent = 'Сохраняем...'; btn.disabled = true; }
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
 
-  try {
-    console.log('Sending POST /api/auth/playlists');
-    // Сохраняем плейлист на сервер
-    const res = await api('POST', '/api/playlists', { name, is_public: true });
-    console.log('Response:', res.ok, res.data);
-    if (!res.ok) {
-      showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
-      if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
-      return;
-    }
+  // Собираем эпизоды
+  const selectedIds = [...(plCrSelectedVids || new Set())];
+  const myVids = userVideos || [];
+  const episodes = selectedIds.map((id, i) => {
+    const v = myVids.find(x => x.id === id);
+    return v ? { n: i+1, t: v.title||'Видео', d: v.description||'', bg: 'linear-gradient(135deg,#0f2027,#2c5364)', dur: '', v: String(v.views||0), file_url: v.file_url, id: v.id } : null;
+  }).filter(Boolean);
 
-    const pl = res.data.playlist;
-    const selectedIds = [...plCrSelectedVids];
+  const newPl = {
+    id: 'pl_' + Date.now(),
+    name,
+    eps: episodes.length,
+    badge: 'new',
+    covers: episodes.slice(0,3).map(e => e.bg).concat(['linear-gradient(135deg,#0f2027,#2c5364)']).slice(0,3),
+    genre: '',
+    episodes,
+  };
 
-    // Добавляем видео в плейлист
-    for (const videoId of selectedIds) {
-      await api('POST', '/api/playlists/' + pl.id + '/videos', { video_id: videoId });
-    }
+  // Добавляем в список и сохраняем
+  userPlaylists = [...(userPlaylists || []), newPl];
 
-    // Добавляем в локальный список
-    const myVids = userVideos || [];
-    const episodes = selectedIds.map((id, i) => {
-      const v = myVids.find(x => x.id === id);
-      return v ? { n: i+1, t: v.title||'Без названия', d: v.description||'', bg: 'linear-gradient(135deg,#0f2027,#2c5364)', dur: '', v: String(v.views||0), file_url: v.file_url } : null;
-    }).filter(Boolean);
-
-    const newPl = {
-      id: pl.id,
-      name: pl.name,
-      eps: episodes.length,
-      badge: 'new',
-      covers: ['linear-gradient(135deg,#0f2027,#2c5364)', 'linear-gradient(135deg,#1e3a5f,#2563eb)', 'linear-gradient(135deg,#064e3b,#047857)'],
-      genre: '',
-      episodes,
-    };
-
-    userPlaylists = [...(userPlaylists || []), newPl];
-    // Сохраняем на сервер
-    await api('POST', '/api/auth/playlists', { playlists: userPlaylists });
-    showFeedHint('✅ Плейлист создан!');
-    closePlCreator();
-    profTab('p');
-  } catch(e) {
-    showFeedHint('Ошибка: ' + e.message);
-    if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
+  // Сохраняем на сервер
+  const res = await api('POST', '/api/auth/playlists', { playlists: userPlaylists });
+  if (res.ok) {
+    showFeedHint('✅ Плейлист сохранён!');
+  } else {
+    showFeedHint('Ошибка сохранения, но плейлист добавлен локально');
   }
+
+  closePlCreator();
+  profTab('p');
 }
+
 
 // ── PROFILE EDIT ─────────────────────────────────────────
 const AV_COLORS = ['#F2C12E','#a78bfa','#4ade80','#fb923c','#f87171','#60a5fa','#f472b6','#34d399'];
