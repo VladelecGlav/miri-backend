@@ -5634,6 +5634,9 @@ async function sendAiChat() {
   const sendBtn = document.getElementById('aiChatSendBtn');
   if (sendBtn) sendBtn.disabled = true;
 
+  // Сохраняем фото до очистки
+  var _attachedImagesCopy = [...(aiAttachedImages || [])];
+
   // Clear input and images immediately
   input.value = '';
   input.style.height = '42px';
@@ -5874,7 +5877,7 @@ async function checkTokens(cost) {
   return true;
 }
 
-async function runPollinationsChat(t, prompt, msgId) {
+async function runPollinationsChat(t, prompt, msgId, attachedImages) {
   var model = selectedImageModel?.id || 'pollinations';
   var isFree = selectedImageModel?.free || model === 'pollinations';
   var cost = selectedImageModel?.cost || 3;
@@ -5902,7 +5905,7 @@ async function runPollinationsChat(t, prompt, msgId) {
     } else {
       // Запускаем генерацию
       // Конвертируем прикреплённые фото в base64 URLs для Nexus
-      var imageUrls = (aiAttachedImages || []).map(function(img) {
+      var imageUrls = (attachedImages || aiAttachedImages || []).map(function(img) {
         return 'data:' + img.type + ';base64,' + img.base64;
       });
       var startRes = await api('POST', '/api/ai/generate-image', {
