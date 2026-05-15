@@ -4875,28 +4875,100 @@ function togglePlVid(videoId, gridIdx) {
     plCrSelectedVids.delete(videoId);
   } else {
     plCrSelectedVids.add(videoId);
-    // First selected video = cover
+    // Первое выбранное видео = обложка
     if (plCrSelectedVids.size === 1) {
-      const v = (userVideos||[]).find(x => x.id === videoId);
-      if (v && v.file_url) {
-        plCrCoverVidId = videoId;
-        const cover = document.getElementById('plCrCover');
-        if (cover) {
-          cover.classList.add('has');
-          cover.innerHTML = `<video src="${v.file_url}" muted playsinline preload="metadata" onloadedmetadata="this.currentTime=1;" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px;"></video><div style="position:absolute;bottom:10px;left:14px;font-size:13px;font-weight:700;color:#fff;">${v.title||''}</div>`;
-        }
-      }
+      setPlCover(videoId);
     }
   }
+
+  // Обновляем только этот элемент без перерендера всего грида
+  var el = document.getElementById('plvi_' + videoId);
+  if (el) {
+    if (plCrSelectedVids.has(videoId)) {
+      el.classList.add('selected');
+    } else {
+      el.classList.remove('selected');
+    }
+  }
+
+  // Обновляем нумерацию на всех элементах
+  var vids = userVideos || [];
+  vids.forEach(function(v) {
+    var numEl = document.querySelector('#plvi_' + v.id + ' .pl-vid-num');
+    if (numEl) numEl.textContent = getVidOrder(v.id);
+  });
+
   updatePlCrBtn();
-  renderPlVidGrid();
+}
+
+function setPlCover(videoId) {
+  var v = (userVideos||[]).find(function(x){ return x.id === videoId; });
+  if (!v) return;
+  plCrCoverVidId = videoId;
+  var cover = document.getElementById('plCrCover');
+  if (!cover) return;
+  cover.classList.add('has');
+  cover.innerHTML = '';
+  if (v.file_url) {
+    var vid = document.createElement('video');
+    vid.src = v.file_url;
+    vid.muted = true;
+    vid.setAttribute('playsinline', '');
+    vid.preload = 'metadata';
+    vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:14px;';
+    vid.onloadedmetadata = function(){ this.currentTime = 1; };
+    cover.appendChild(vid);
+  }
+  var label = document.createElement('div');
+  label.style.cssText = 'position:absolute;bottom:10px;left:14px;font-size:13px;font-weight:700;color:#fff;';
+  label.textContent = v.title || '';
+  cover.appendChild(label);
 }
 
 function pickPlCover() {
-  // If has videos selected, pick from them; else show tip
-  if ((userVideos||[]).length === 0) {
-    alert('Сначала загрузи хотя бы одно видео');
-  }
+  var vids = userVideos || [];
+  if (vids.length === 0) { showFeedHint('Сначала загрузи видео'); return; }
+
+  // Показываем попап выбора обложки
+  var existing = document.getElementById('coverPickModal');
+  if (existing) { existing.remove(); return; }
+
+  var modal = document.createElement('div');
+  modal.id = 'coverPickModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;display:flex;align-items:flex-end;';
+  modal.onclick = function(e){ if(e.target===modal) modal.remove(); };
+
+  var inner = document.createElement('div');
+  inner.style.cssText = 'background:#1a1a2e;border-radius:20px 20px 0 0;width:100%;padding:16px;max-height:70vh;overflow-y:auto;';
+  inner.innerHTML = '<div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:12px;">Выбери обложку</div>';
+
+  var grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:4px;';
+
+  vids.forEach(function(v) {
+    var item = document.createElement('div');
+    item.style.cssText = 'aspect-ratio:9/16;position:relative;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid ' + (v.id === plCrCoverVidId ? '#F2C12E' : 'transparent') + ';';
+    item.innerHTML = '<div style="position:absolute;inset:0;background:linear-gradient(135deg,#0f2027,#2c5364);"></div>';
+    if (v.file_url) {
+      var vid = document.createElement('video');
+      vid.src = v.file_url;
+      vid.muted = true;
+      vid.setAttribute('playsinline', '');
+      vid.preload = 'metadata';
+      vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+      vid.onloadedmetadata = function(){ this.currentTime = 1; };
+      item.appendChild(vid);
+    }
+    item.onclick = function() {
+      setPlCover(v.id);
+      modal.remove();
+    };
+    grid.appendChild(item);
+  });
+
+  inner.appendChild(grid);
+  modal.appendChild(inner);
+  document.body.appendChild(modal);
   // Cover is set automatically on first video selection
 }
 
