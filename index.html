@@ -2444,6 +2444,10 @@ function renderCreateContent(tabId) {
     openImageChat();
     return;
   }
+  if (tabId === 'video') {
+    openVideoChat();
+    return;
+  }
   const all = TOOLS.filter(t => t.cat === tabId);
   const live = all.filter(t => t.status === 'live');
   const soon = all.filter(t => t.status === 'soon');
@@ -5497,6 +5501,16 @@ function initTextModelSelector() {
 // ── TEXT CHAT ─────────────────────────────────────────────
 // ── IMAGE CHAT ───────────────────────────────────────────
 let selectedImageStyle = null;
+
+function openVideoChat() {
+  var videoTool = {
+    id: 'video', n: 'Видео', e: '🎬',
+    rt: 'video', model: selectedModel?.id || 'kling-v3',
+    ph: 'Опиши что хочешь снять...',
+    styles: [], status: 'live',
+  };
+  openAiChat(videoTool);
+}
 
 function openImageChat() {
   var imageTool = {
