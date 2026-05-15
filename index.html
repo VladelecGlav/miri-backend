@@ -4794,11 +4794,13 @@ async function savePlCreator() {
     video_ids: selectedIds,
   });
 
+  alert('Status: ' + res.ok + ' | ' + JSON.stringify(res.data));
+
   if (res.ok) {
     showFeedHint('✅ Плейлист создан!');
-    userPlaylists = null; // сбрасываем кэш
+    userPlaylists = null;
     closePlCreator();
-    profTab('p'); // переходим на вкладку плейлистов
+    profTab('p');
   } else {
     showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
     if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
