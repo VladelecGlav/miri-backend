@@ -305,8 +305,9 @@ router.post('/generate-video-nexus', authenticate, async (req, res) => {
   if (!deduct.ok) return res.status(402).json({ error: deduct.error, balance: deduct.balance, cost: deduct.cost });
 
   try {
-    const params = { model_name: model, prompt, duration, aspect_ratio };
+    const params = { model_name: model, prompt, duration: parseInt(duration), aspect_ratio };
     if (image_url) params.image_url = image_url;
+    console.log('Nexus video params:', model, 'duration:', duration, 'has_image:', !!image_url);
 
     const resp = await fetch('https://nexusapi.dev/generate', {
       method: 'POST',

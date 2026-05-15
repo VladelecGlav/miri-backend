@@ -5150,8 +5150,12 @@ function openAiChat(tool) {
   var attachBtn = document.getElementById('aiAttachBtn');
   if (attachBtn) {
     var showAttach = (tool.rt === 'text' && selectedTextProvider?.provider === 'ChatGPT') ||
-                   (tool.rt === 'image');
+                   (tool.rt === 'image') ||
+                   (tool.rt === 'video');
   attachBtn.style.display = showAttach ? 'flex' : 'none';
+  // Для видео принимаем только одно фото
+  var imageInput = document.getElementById('aiImageInput');
+  if (imageInput) imageInput.multiple = (tool.rt !== 'video');
   }
   // Clear attached images when opening new chat
   aiAttachedImages = [];
@@ -5731,7 +5735,7 @@ async function sendAiChat() {
     } else if (t.rt === 'audio') {
       await runMusicChat(t, text, msgId);
     } else {
-      await runKlingChat(t, text, msgId);
+      await runKlingChat(t, text, msgId, _attachedImagesCopy);
     }
   } catch(e) {
     updateChatMsg(t.id, msgId, { status: 'error', errorText: (e && e.message) ? e.message : String(e) });
@@ -6056,7 +6060,7 @@ async function runMusicChat(t, prompt, msgId) {
   renderChatHistory(t.id);
 }
 
-async function runKlingChat(t, prompt, msgId) {
+async function runKlingChat(t, prompt, msgId, attachedImages) {
   // Проверяем токены (6 токенов за видео)
   if (!await checkTokens(6)) {
     updateChatMsg(t.id, msgId, { status: 'error', errorText: 'Недостаточно токенов' });
@@ -6085,8 +6089,15 @@ async function runKlingChat(t, prompt, msgId) {
   // Nexus models (Kling v3 и другие)
   if (isNexus) {
     updateChatMsg(t.id, msgId, { statusText: '🎬 Запускаем Kling v3...', progress: 20 });
+    // Прикреплённое фото для image-to-video
+    var videoImageUrl = null;
+    var _imgs = attachedImages || [];
+    if (_imgs.length > 0) {
+      videoImageUrl = 'data:' + _imgs[0].type + ';base64,' + _imgs[0].base64;
+    }
     const startRes = await api('POST', '/api/ai/generate-video-nexus', {
       prompt: engPrompt, model: modelId, duration: selectedVideoDuration, aspect_ratio: '9:16',
+      image_url: videoImageUrl || undefined,
     });
     if (!startRes.ok) throw new Error(startRes.data?.error || 'Ошибка запуска');
 
