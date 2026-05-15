@@ -4779,14 +4779,17 @@ function pickPlCover() {
 
 async function savePlCreator() {
   const name = document.getElementById('plCrName')?.value.trim();
+  console.log('savePlCreator called, name:', name, 'token:', !!API_TOKEN);
   if (!name) return;
 
   const btn = document.getElementById('plCrSaveBtn');
   if (btn) { btn.textContent = 'Сохраняем...'; btn.disabled = true; }
 
   try {
+    console.log('Sending POST /api/auth/playlists');
     // Сохраняем плейлист на сервер
     const res = await api('POST', '/api/playlists', { name, is_public: true });
+    console.log('Response:', res.ok, res.data);
     if (!res.ok) {
       showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
       if (btn) { btn.textContent = 'Создать'; btn.disabled = false; }
