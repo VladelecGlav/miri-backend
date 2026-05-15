@@ -180,16 +180,111 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
 });
 
 router.get('/feed', optionalAuth, async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page)||1);
-  const limit = Math.min(50, parseInt(req.query.limit)||10);
+  const page  = Math.max(1, parseInt(req.query.page)||1);
+  const limit = Math.min(50, parseInt(req.query.limit)||20);
+
   try {
-    const [videos, total] = await Promise.all([
-      dbAll(`SELECT * FROM videos WHERE status='published' AND is_public=1 ORDER BY created_at DESC LIMIT $1 OFFSET $2`, [limit, (page-1)*limit]),
-      dbGet(`SELECT COUNT(*) as c FROM videos WHERE status='published' AND is_public=1`),
-    ]);
-    const formatted = await Promise.all(videos.map(v => fmt(v, req.user?.id)));
-    res.json({ videos: formatted, pagination: { page, limit, total: parseInt(total?.c||0), pages: Math.ceil(parseInt(total?.c||0)/limit) } });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+    const userId = req.user?.id;
+    const offset = (page-1) * limit;
+    const now = new Date();
+    const dayAgo = new Date(now - 24*60*60*1000).toISOString();
+    const weekAgo = new Date(now - 7*24*60*60*1000).toISOString();
+
+    // Получаем лайкнутые теги пользователя для персонализации
+    let userTags = [];
+    if (userId) {
+      const liked = await dbAll(
+        `SELECT v.tags FROM likes l JOIN videos v ON v.id=l.video_id WHERE l.user_id=$1 ORDER BY l.created_at DESC LIMIT 20`,
+        [userId]
+      );
+      liked.forEach(row => {
+        try { userTags.push(...JSON.parse(row.tags || '[]')); } catch(e) {}
+      });
+      // Топ-3 тега
+      const tagCount = {};
+      userTags.forEach(t => { tagCount[t] = (tagCount[t]||0) + 1; });
+      userTags = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([t])=>t);
+    }
+
+    // Просмотренные видео (не показывать повторно)
+    let seenIds = [];
+    if (userId) {
+      const seen = await dbAll(
+        `SELECT DISTINCT video_id FROM video_views WHERE user_id=$1 ORDER BY created_at DESC LIMIT 200`,
+        [userId]
+      );
+      seenIds = seen.map(r => r.video_id);
+    }
+
+    const seenFilter = seenIds.length > 0
+      ? `AND v.id NOT IN (${seenIds.map((_,i) => '$'+(i+3)).join(',')})` : '';
+
+    const baseParams = [limit, offset, ...seenIds];
+
+    // 1. Новые (последние 24ч) — 30%
+    const newCount = Math.floor(limit * 0.3);
+    const newVideos = await dbAll(
+      `SELECT * FROM videos v WHERE v.status='published' AND v.is_public=1
+       AND v.created_at > '${dayAgo}' ${seenFilter}
+       ORDER BY v.created_at DESC LIMIT ${newCount}`,
+      seenIds.length > 0 ? seenIds : []
+    );
+
+    // 2. Популярные за неделю — 40%
+    const popCount = Math.floor(limit * 0.4);
+    const popVideos = await dbAll(
+      `SELECT * FROM videos v WHERE v.status='published' AND v.is_public=1
+       AND v.created_at > '${weekAgo}' ${seenFilter}
+       ORDER BY (v.likes_count * 3 + v.views * 0.1 + v.comments_count * 2) DESC LIMIT ${popCount}`,
+      seenIds.length > 0 ? seenIds : []
+    );
+
+    // 3. По интересам (теги) — 20%
+    let tagVideos = [];
+    if (userTags.length > 0) {
+      const tagCount2 = Math.floor(limit * 0.2);
+      const tagFilter = userTags.map(t => `v.tags ILIKE '%${t.replace(/'/g,'')}%'`).join(' OR ');
+      tagVideos = await dbAll(
+        `SELECT * FROM videos v WHERE v.status='published' AND v.is_public=1
+         AND (${tagFilter}) ${seenFilter}
+         ORDER BY RANDOM() LIMIT ${tagCount2}`,
+        seenIds.length > 0 ? seenIds : []
+      );
+    }
+
+    // 4. Случайные — оставшееся место
+    const usedIds = new Set([...newVideos, ...popVideos, ...tagVideos].map(v=>v.id));
+    const randCount = limit - usedIds.size;
+    const randFilter = usedIds.size > 0
+      ? `AND v.id NOT IN (${[...usedIds].map((_,i)=>'$'+(i+1)).join(',')})` : '';
+    const randVideos = await dbAll(
+      `SELECT * FROM videos v WHERE v.status='published' AND v.is_public=1
+       ${randFilter} ORDER BY RANDOM() LIMIT ${Math.max(randCount, 5)}`,
+      [...usedIds]
+    );
+
+    // Смешиваем и убираем дубли
+    const allVideos = [...newVideos, ...popVideos, ...tagVideos, ...randVideos];
+    const seen2 = new Set();
+    const unique = allVideos.filter(v => { if (seen2.has(v.id)) return false; seen2.add(v.id); return true; });
+
+    // Перемешиваем (Fisher-Yates)
+    for (let i = unique.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [unique[i], unique[j]] = [unique[j], unique[i]];
+    }
+
+    const total = await dbGet(`SELECT COUNT(*) as c FROM videos WHERE status='published' AND is_public=1`);
+    const formatted = await Promise.all(unique.slice(0, limit).map(v => fmt(v, userId)));
+
+    res.json({
+      videos: formatted,
+      pagination: { page, limit, total: parseInt(total?.c||0), pages: Math.ceil(parseInt(total?.c||0)/limit) }
+    });
+  } catch(e) {
+    console.error('Feed error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.get('/subscriptions', authenticate, async (req, res) => {
