@@ -353,4 +353,19 @@ router.get('/image-status/:taskId', authenticate, async (req, res) => {
   }
 });
 
+// ── POST /api/ai/refund-tokens — возврат токенов ─────────
+router.post('/refund-tokens', authenticate, async (req, res) => {
+  const { cost, description } = req.body;
+  if (!cost || cost <= 0) return res.status(400).json({ error: 'Неверная сумма' });
+  try {
+    await dbRun('UPDATE token_balance SET balance=balance+$1, updated_at=NOW() WHERE user_id=$2', [cost, req.user.id]);
+    await dbRun(
+      'INSERT INTO token_transactions (id,user_id,amount,type,description) VALUES ($1,$2,$3,$4,$5)',
+      [uuid(), req.user.id, cost, 'refund', description || 'Возврат токенов']
+    );
+    const balance = await dbGet('SELECT balance FROM token_balance WHERE user_id=$1', [req.user.id]);
+    res.json({ success: true, balance: balance?.balance || 0 });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 export default router;

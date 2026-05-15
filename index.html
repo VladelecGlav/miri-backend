@@ -5101,6 +5101,7 @@ async function saveProfEdit() {
 
 // ── AI CHAT SYSTEM ──────────────────────────────────────
 let aiChatTool = null;
+const aiCancelMap = {}; // msgId -> cancelFn
 let aiChatStyle = '';
 let aiChatPolling = {}; // genId -> intervalId
 
@@ -5259,7 +5260,8 @@ function renderChatMsg(m) {
       <span style="display:inline-block;animation:spin .8s linear infinite;">◌</span>
       ${m.statusText || 'Генерируется...'}
     </div>
-    <div class="ai-progress"><div class="ai-progress-bar" id="prog_${m.id}" style="width:${m.progress||5}%;"></div></div>`;
+    <div class="ai-progress"><div class="ai-progress-bar" id="prog_${m.id}" style="width:${m.progress||5}%;"></div></div>
+    ${m.cancelFn ? `<button onclick="aiCancelMap['${m.id}']()" style="margin-top:6px;padding:4px 12px;background:rgba(239,68,68,.15);border:.5px solid rgba(239,68,68,.3);border-radius:8px;color:#ef4444;font-size:11px;cursor:pointer;font-family:-apple-system,sans-serif;">✕ Отменить</button>` : ''}`;
   } else if (m.status === 'completed') {
     if (m.type === 'video' && m.resultUrl) {
       inner = `<div>Готово! 🎉</div>
@@ -5691,6 +5693,10 @@ async function sendAiChat() {
 }
 
 function updateChatMsg(toolId, msgId, updates) {
+  if (updates.cancelFn) {
+    aiCancelMap[msgId] = updates.cancelFn;
+    delete updates.cancelFn;
+  }
   const history = getChatHistory(toolId);
   const idx = history.findIndex(m => m.id === msgId);
   if (idx >= 0) {
@@ -5882,14 +5888,13 @@ async function runPollinationsChat(t, prompt, msgId) {
     return;
   }
 
-  updateChatMsg(t.id, msgId, { statusText: '🎨 Рисуем...', progress: 20 });
+  updateChatMsg(t.id, msgId, { statusText: '🎨 Рисуем...', progress: 5 });
   renderChatHistory(t.id);
 
   try {
     var imageUrl;
 
     if (isFree || model === 'pollinations') {
-      // Бесплатно через Pollinations
       var encoded = encodeURIComponent(prompt);
       imageUrl = 'https://image.pollinations.ai/prompt/' + encoded + '?width=1080&height=1080&nologo=true&seed=' + Math.floor(Math.random()*99999);
       await new Promise(function(resolve, reject) {
@@ -5899,36 +5904,71 @@ async function runPollinationsChat(t, prompt, msgId) {
         img.src = imageUrl;
       });
     } else {
-      // Nexus API — асинхронная генерация
+      // Запускаем генерацию
       var startRes = await api('POST', '/api/ai/generate-image', { prompt, model, aspect_ratio: '1:1', image_size: '1K' });
       if (!startRes.ok) throw new Error(startRes.data?.error || 'Ошибка запуска');
 
       var taskId = startRes.data.task_id;
       if (startRes.data.balance !== undefined && userBilling) userBilling.balance = startRes.data.balance;
 
-      // Polling каждые 3 секунды, максимум 60 секунд
-      updateChatMsg(t.id, msgId, { statusText: '⏳ Генерируем...', progress: 40 });
-      renderChatHistory(t.id);
+      // Переменные для отмены
+      var cancelled = false;
+      var cancelFn = function() { cancelled = true; };
 
-      var maxAttempts = 84;
-      for (var i = 0; i < maxAttempts; i++) {
-        await new Promise(function(r){ setTimeout(r, 5000); });
-        var statusRes = await api('GET', '/api/ai/image-status/' + taskId);
-        if (!statusRes.ok) continue;
-
-        var status = statusRes.data.status;
-        var progress = Math.min(40 + i * 3, 90);
-        updateChatMsg(t.id, msgId, { statusText: '⏳ Генерируем...', progress });
+      // Прогресс-бар с таймером
+      var totalSecs = 420; // 7 минут
+      var elapsed = 0;
+      var timerInterval = setInterval(function() {
+        elapsed++;
+        var pct = Math.min(Math.round(elapsed / totalSecs * 90), 90);
+        var secsLeft = totalSecs - elapsed;
+        var mins = Math.floor(secsLeft / 60);
+        var secs = secsLeft % 60;
+        var timeStr = mins > 0 ? mins + ' мин ' + secs + ' сек' : secs + ' сек';
+        updateChatMsg(t.id, msgId, {
+          statusText: '⏳ Генерируем... ' + timeStr,
+          progress: pct,
+          cancelFn: cancelFn,
+        });
         renderChatHistory(t.id);
+      }, 1000);
 
-        if (status === 'completed' && statusRes.data.url) {
-          imageUrl = statusRes.data.url;
-          break;
+      // Polling каждые 5 секунд
+      var maxAttempts = 84;
+      try {
+        for (var i = 0; i < maxAttempts; i++) {
+          await new Promise(function(r){ setTimeout(r, 5000); });
+          if (cancelled) {
+            // Возвращаем токены при отмене
+            await api('POST', '/api/ai/refund-tokens', { cost, description: 'Отмена генерации: ' + model });
+            if (userBilling) userBilling.balance = (userBilling.balance || 0) + cost;
+            throw new Error('Отменено пользователем');
+          }
+
+          var statusRes = await api('GET', '/api/ai/image-status/' + taskId);
+          if (!statusRes.ok) continue;
+
+          if (statusRes.data.status === 'completed' && statusRes.data.url) {
+            imageUrl = statusRes.data.url;
+            break;
+          }
+          if (statusRes.data.status === 'failed') {
+            // Возвращаем токены при ошибке
+            await api('POST', '/api/ai/refund-tokens', { cost, description: 'Ошибка генерации: ' + model });
+            if (userBilling) userBilling.balance = (userBilling.balance || 0) + cost;
+            throw new Error(statusRes.data.error || 'Генерация не удалась');
+          }
         }
-        if (status === 'failed') throw new Error(statusRes.data.error || 'Генерация не удалась');
+      } finally {
+        clearInterval(timerInterval);
       }
 
-      if (!imageUrl) throw new Error('Превышено время ожидания');
+      if (!imageUrl) {
+        // Возвращаем токены при таймауте
+        await api('POST', '/api/ai/refund-tokens', { cost, description: 'Таймаут генерации: ' + model });
+        if (userBilling) userBilling.balance = (userBilling.balance || 0) + cost;
+        throw new Error('Превышено время ожидания (7 мин). Токены возвращены');
+      }
     }
 
     updateChatMsg(t.id, msgId, { status: 'completed', type: 'image', resultUrl: imageUrl, prompt });
