@@ -4550,12 +4550,24 @@ async function openVideoPlaylist(playlistId) {
   popup.id = 'feedPlaylistPopup';
   popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;display:flex;flex-direction:column;overflow:hidden;';
 
-  popup.innerHTML =
-    '<div style="display:flex;align-items:center;gap:12px;padding:16px;padding-top:60px;border-bottom:.5px solid rgba(255,255,255,.08);">' +
-      '<button onclick="document.getElementById('feedPlaylistPopup').remove()" style="background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:50%;width:36px;height:36px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;">‹</button>' +
-      '<div id="feedPlTitle" style="font-size:17px;font-weight:700;color:#fff;">Загрузка...</div>' +
-    '</div>' +
-    '<div id="feedPlList" style="overflow-y:auto;flex:1;padding:8px 16px;"></div>';
+  // Header
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;align-items:center;gap:12px;padding:16px;padding-top:60px;border-bottom:.5px solid rgba(255,255,255,.08);';
+  var backBtn = document.createElement('button');
+  backBtn.style.cssText = 'background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:50%;width:36px;height:36px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;';
+  backBtn.textContent = '‹';
+  backBtn.onclick = function(){ popup.remove(); };
+  var titleEl = document.createElement('div');
+  titleEl.id = 'feedPlTitle';
+  titleEl.style.cssText = 'font-size:17px;font-weight:700;color:#fff;';
+  titleEl.textContent = 'Загрузка...';
+  hdr.appendChild(backBtn);
+  hdr.appendChild(titleEl);
+  var listEl = document.createElement('div');
+  listEl.id = 'feedPlList';
+  listEl.style.cssText = 'overflow-y:auto;flex:1;padding:8px 16px;';
+  popup.appendChild(hdr);
+  popup.appendChild(listEl);
 
   document.body.appendChild(popup);
 
