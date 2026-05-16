@@ -863,12 +863,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       
     </div>
     <div class="feed-bar" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()">
-      <div onclick="navTo('notifications')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;z-index:10;">
-        <div style="position:relative;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span id="notifBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;border-radius:50%;min-width:15px;height:15px;line-height:15px;text-align:center;"></span>
-        </div>
-      </div>
+
       <div class="feed-logo-row">
         <div class="feed-logo-icon"><div class="po"></div><div class="pi"></div></div>
         <span class="feed-logo-txt">Miri</span>
@@ -877,13 +872,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
         <span class="ftab" id="tabSubs" onclick="switchFeedTab('subs')">Подписки</span>
         <span class="ftab active" id="tabForYou" onclick="switchFeedTab('foryou')">Для тебя</span>
       </div>
-      <div onclick="toggleFullscreen()" id="fsBtn" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;">
-        <svg id="fsIcoExpand" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
-        </svg>
-        <svg id="fsIcoCollapse" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-          <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
-        </svg>
+      <div onclick="navTo('notifications')" id="fsBtn" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;position:relative;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;border-radius:50%;min-width:14px;height:14px;line-height:14px;text-align:center;"></span>
       </div>
     </div>
     <div class="navbar">
@@ -918,13 +909,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
     <div class="orb oa"></div><div class="orb ob"></div>
     <div class="page-bar" style="position:relative;z-index:2;">
       <div><div class="page-title">Создать</div><div class="page-subtitle">Выбери ИИ-инструмент</div></div>
-      <div onclick="toggleFullscreen()" id="fsBtn" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;">
-        <svg id="fsIcoExpand" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>
-        </svg>
-        <svg id="fsIcoCollapse" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
-          <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>
-        </svg>
+      <div onclick="navTo('notifications')" id="fsBtn" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;position:relative;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;border-radius:50%;min-width:14px;height:14px;line-height:14px;text-align:center;"></span>
       </div>
     </div>
     <div class="create-body" id="createBody" style="position:relative;z-index:2;"></div>
@@ -6399,7 +6386,7 @@ function navTo(page){
     releaseWakeLock();
   }
 
-  const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile',plans:'pagePlans'};
+  const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile',plans:'pagePlans',notifications:'pageNotifications'};
   showPage(map[page]);
   if(page==='feed'){
     // Stop any profile videos
