@@ -1081,8 +1081,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
 
   <!-- Notifications page -->
   <div class="page" id="pageNotifications" style="overflow-y:auto;">
-    <div style="padding:60px 16px 16px;">
-      <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;">🔔 Уведомления</div>
+    <div style="padding:16px;padding-top:60px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <button onclick="navTo('feed')" style="background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:50%;width:36px;height:36px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;">‹</button>
+        <div style="font-size:18px;font-weight:700;color:#fff;">🔔 Уведомления</div>
+      </div>
       <div id="notifList"><div style="text-align:center;padding:40px;color:rgba(255,255,255,.3);">Загрузка...</div></div>
     </div>
   </div>
