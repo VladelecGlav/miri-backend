@@ -2,6 +2,29 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+
+const s3 = new S3Client({
+  endpoint: process.env.S3_ENDPOINT || 'https://s3.twcstorage.ru',
+  region: process.env.S3_REGION || 'ru-1',
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY || '',
+    secretAccessKey: process.env.S3_SECRET_KEY || '',
+  },
+  forcePathStyle: true,
+});
+
+async function uploadPreviewToS3(base64Data, filename, mimeType) {
+  const buffer = Buffer.from(base64Data, 'base64');
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET || 'miri-videos',
+    Key: filename,
+    Body: buffer,
+    ContentType: mimeType,
+    ACL: 'public-read',
+  }));
+  return (process.env.S3_ENDPOINT || 'https://s3.twcstorage.ru') + '/' + (process.env.S3_BUCKET || 'miri-videos') + '/' + filename;
+}
 
 const router = Router();
 
@@ -31,11 +54,25 @@ router.post('/', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'Добавь хотя бы один шаг' });
   try {
     const id = uuid();
+    
+    // Upload preview to S3
+    let previewUrl = null;
+    if (preview_media && preview_media.startsWith('data:')) {
+      try {
+        const matches = preview_media.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches && process.env.S3_ACCESS_KEY) {
+          const mimeType = matches[1];
+          const base64 = matches[2];
+          const ext = mimeType.includes('video') ? 'mp4' : 'jpg';
+          previewUrl = await uploadPreviewToS3(base64, 'trends/' + id + '.' + ext, mimeType);
+        }
+      } catch(e) { console.error('Preview S3 error:', e.message); }
+    }
     await dbRun(
-      'INSERT INTO trends (id,user_id,title,emoji,category,difficulty,preview_color,steps,is_official) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      'INSERT INTO trends (id,user_id,title,emoji,category,difficulty,preview_color,steps,is_official,preview_video_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
       [id, req.user.id, title, emoji||'✨', category||'Другое',
        difficulty||'Легко', preview_color||'linear-gradient(135deg,#1a1a2e,#4338ca)',
-       JSON.stringify(steps), 0]
+       JSON.stringify(steps), 0, previewUrl]
     );
     const trend = await dbGet('SELECT * FROM trends WHERE id=$1', [id]);
     res.status(201).json({ trend: { ...trend, steps } });
