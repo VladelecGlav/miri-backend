@@ -144,4 +144,74 @@ router.patch('/me', authenticate, async (req, res) => {
 });
 
 
+// POST /api/auth/streak — получить ежедневный бонус
+router.post('/streak', authenticate, async (req, res) => {
+  try {
+    const user = await dbGet(
+      'SELECT streak_days, streak_last_date, streak_total_tokens FROM users WHERE id=$1',
+      [req.user.id]
+    );
+
+    const today = new Date().toISOString().slice(0, 10);
+    const lastDate = user?.streak_last_date ? String(user.streak_last_date).slice(0, 10) : null;
+
+    if (lastDate === today) {
+      return res.status(400).json({ error: 'Уже получен сегодня', streak: user.streak_days });
+    }
+
+    // Проверяем не прервалась ли серия
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const isConsecutive = lastDate === yesterday;
+    const newStreak = isConsecutive ? (user.streak_days || 0) + 1 : 1;
+
+    // Бонус токенов — растёт с серией
+    let bonus = 1;
+    if (newStreak >= 30) bonus = 10;
+    else if (newStreak >= 7) bonus = 3;
+    else if (newStreak >= 3) bonus = 2;
+
+    // Обновляем пользователя
+    await dbRun(
+      'UPDATE users SET streak_days=$1, streak_last_date=$2, streak_total_tokens=streak_total_tokens+$3 WHERE id=$4',
+      [newStreak, today, bonus, req.user.id]
+    );
+
+    // Начисляем токены
+    await dbRun('UPDATE token_balance SET balance=balance+$1, updated_at=NOW() WHERE user_id=$2', [bonus, req.user.id]);
+    await dbRun(
+      'INSERT INTO token_transactions (id,user_id,amount,type,description) VALUES ($1,$2,$3,$4,$5)',
+      [uuid(), req.user.id, bonus, 'streak', 'Ежедневный бонус (день ' + newStreak + ')']
+    );
+
+    const balance = await dbGet('SELECT balance FROM token_balance WHERE user_id=$1', [req.user.id]);
+
+    res.json({
+      success: true,
+      streak: newStreak,
+      bonus,
+      balance: balance?.balance || 0,
+      message: '+' + bonus + ' токенов! День ' + newStreak,
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/auth/streak — статус streak
+router.get('/streak', authenticate, async (req, res) => {
+  try {
+    const user = await dbGet(
+      'SELECT streak_days, streak_last_date FROM users WHERE id=$1',
+      [req.user.id]
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    const lastDate = user?.streak_last_date ? String(user.streak_last_date).slice(0, 10) : null;
+    const claimed = lastDate === today;
+
+    res.json({
+      streak: user?.streak_days || 0,
+      claimed,
+      next_bonus: (user?.streak_days || 0) >= 30 ? 10 : (user?.streak_days || 0) >= 7 ? 3 : (user?.streak_days || 0) >= 3 ? 2 : 1,
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 export default router;

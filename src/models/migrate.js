@@ -115,6 +115,11 @@ export async function migrate() {
     );
     CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, created_at DESC);
 
+    -- Streak
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_days INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_last_date DATE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_total_tokens INTEGER NOT NULL DEFAULT 0;
+
     -- Промокоды
     CREATE TABLE IF NOT EXISTS promo_codes (
       id          TEXT PRIMARY KEY,

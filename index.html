@@ -1066,6 +1066,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
     </div>
   </div>
 
+  <!-- Streak popup -->
+  <div id="streakPopup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:none;align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);border-radius:24px;padding:32px 24px;text-align:center;max-width:280px;width:90%;border:.5px solid rgba(242,193,46,.2);">
+      <div id="streakFire" style="font-size:64px;margin-bottom:8px;">🔥</div>
+      <div id="streakDay" style="font-size:32px;font-weight:800;color:#F2C12E;margin-bottom:4px;">День 1</div>
+      <div id="streakMsg" style="font-size:15px;color:rgba(255,255,255,.7);margin-bottom:24px;">Ты заходишь каждый день!</div>
+      <div id="streakBonus" style="font-size:20px;font-weight:700;color:#fff;margin-bottom:24px;">+1 🪙</div>
+      <button onclick="closeStreak()" style="width:100%;padding:14px;background:#F2C12E;border:none;border-radius:14px;font-size:16px;font-weight:700;color:#0b0b0f;cursor:pointer;font-family:-apple-system,sans-serif;">Забрать!</button>
+    </div>
+  </div>
+
   <!-- ── USER PAGE (global) ── -->
   <div class="user-page" id="userPage">
     <div class="user-bar">
@@ -1387,6 +1398,8 @@ function loginWithGoogle() {
       loadBilling();
   checkUnreadNotifications();
   setInterval(checkUnreadNotifications, 30000);
+  // Check streak after 2 seconds
+  setTimeout(checkStreak, 2000);
   // Register existing user in OneSignal
   try {
     var _su = store.get('miri_user');
@@ -2732,6 +2745,48 @@ function openSearchVideo(idx) {
 }
 
 // ── NOTIFICATIONS ────────────────────────────────────────
+// ── STREAK ───────────────────────────────────────────────
+async function checkStreak() {
+  if (!API_TOKEN) return;
+  try {
+    const res = await api('GET', '/api/auth/streak');
+    if (!res.ok || res.data.claimed) return;
+
+    // Показываем попап и забираем бонус
+    const claimRes = await api('POST', '/api/auth/streak');
+    if (!claimRes.ok) return;
+
+    const { streak, bonus, message } = claimRes.data;
+
+    // Обновляем попап
+    var fireEl = document.getElementById('streakFire');
+    var dayEl = document.getElementById('streakDay');
+    var msgEl = document.getElementById('streakMsg');
+    var bonusEl = document.getElementById('streakBonus');
+
+    if (streak >= 30) { if(fireEl) fireEl.textContent = '🏆'; }
+    else if (streak >= 7) { if(fireEl) fireEl.textContent = '⚡'; }
+
+    if (dayEl) dayEl.textContent = 'День ' + streak;
+    if (msgEl) msgEl.textContent = streak === 1 ? 'Добро пожаловать!' : streak >= 7 ? 'Невероятная серия!' : 'Ты заходишь каждый день!';
+    if (bonusEl) bonusEl.textContent = '+' + bonus + ' 🪙';
+
+    // Показываем попап
+    var popup = document.getElementById('streakPopup');
+    if (popup) popup.style.display = 'flex';
+
+    // Обновляем баланс
+    if (claimRes.data.balance !== undefined && userBilling) {
+      userBilling.balance = claimRes.data.balance;
+    }
+  } catch(e) {}
+}
+
+function closeStreak() {
+  var popup = document.getElementById('streakPopup');
+  if (popup) popup.style.display = 'none';
+}
+
 async function loadNotifications() {
   if (!API_TOKEN) return;
   const list = document.getElementById('notifList');
