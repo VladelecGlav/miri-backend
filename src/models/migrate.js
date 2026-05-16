@@ -103,6 +103,18 @@ export async function migrate() {
     CREATE INDEX IF NOT EXISTS idx_pl_user ON playlists(user_id);
     CREATE INDEX IF NOT EXISTS idx_pl_vids ON playlist_videos(playlist_id);
 
+    CREATE TABLE IF NOT EXISTS notifications (
+      id         TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type       TEXT NOT NULL, -- like, comment, follow, reply
+      from_id    TEXT REFERENCES users(id) ON DELETE SET NULL,
+      video_id   TEXT REFERENCES videos(id) ON DELETE CASCADE,
+      text       TEXT,
+      is_read    INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, created_at DESC);
+
     -- Промокоды
     CREATE TABLE IF NOT EXISTS promo_codes (
       id          TEXT PRIMARY KEY,

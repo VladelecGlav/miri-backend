@@ -1016,7 +1016,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
       <div class="nb-item" onclick="navTo('feed')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg><span>Лента</span></div>
       <div class="nb-item nb-upload-btn" onclick="navTo('upload')"><div class="nb-upload-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0b0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div><span style="color:rgba(255,255,255,.55);font-size:11px;">Загрузить</span></div>
       <div class="nb-create" onclick="navTo('create')"><div class="nb-create-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg></div><span class="nb-create-lbl">Создать</span></div>
+      <div class="nb-item" id="navNotifBtn" onclick="navTo('notifications')" style="position:relative;">
+        <div style="position:relative;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notifBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;border-radius:50%;min-width:16px;height:16px;padding:0 2px;align-items:center;justify-content:center;"></span>
+        </div>
+        <span>Звонки</span>
+      </div>
       <div class="nb-item on" onclick="navTo('profile')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Профиль</span></div>
+    </div>
+  </div>
+
+  <!-- Notifications page -->
+  <div class="page" id="pageNotifications" style="overflow-y:auto;">
+    <div style="padding:60px 16px 16px;">
+      <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;">🔔 Уведомления</div>
+      <div id="notifList"><div style="text-align:center;padding:40px;color:rgba(255,255,255,.3);">Загрузка...</div></div>
     </div>
   </div>
 
@@ -1339,6 +1354,9 @@ function loginWithGoogle() {
     setTimeout(function() {
       showFeedHint('✅ Оплата прошла! Токены начислены');
       loadBilling();
+  checkUnreadNotifications();
+  // Проверяем каждые 30 секунд
+  setInterval(checkUnreadNotifications, 30000);
     }, 1500);
   }
   if (token || payment) {
@@ -2582,6 +2600,62 @@ async function activatePromo() {
     result.style.color = '#ef4444';
     result.textContent = '❌ ' + (res.data?.error || 'Ошибка');
   }
+}
+
+// ── NOTIFICATIONS ────────────────────────────────────────
+async function loadNotifications() {
+  if (!API_TOKEN) return;
+  const list = document.getElementById('notifList');
+  if (!list) return;
+
+  const res = await api('GET', '/api/notifications');
+  if (!res.ok) { list.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,.3);">Ошибка загрузки</div>'; return; }
+
+  const notifs = res.data.notifications || [];
+
+  // Отмечаем как прочитанные
+  if (res.data.unread > 0) {
+    api('POST', '/api/notifications/read');
+    updateNotifBadge(0);
+  }
+
+  if (notifs.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,.3);">Уведомлений пока нет</div>';
+    return;
+  }
+
+  const icons = { like: '❤️', comment: '💬', follow: '👤' };
+
+  list.innerHTML = notifs.map(function(n) {
+    var icon = icons[n.type] || '🔔';
+    var time = new Date(n.created_at).toLocaleDateString('ru-RU', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+    var bg = n.is_read ? 'transparent' : 'rgba(242,193,46,.05)';
+    return '<div style="display:flex;gap:12px;align-items:center;padding:12px;border-radius:12px;background:' + bg + ';margin-bottom:4px;cursor:pointer;" onclick="' + (n.video_id ? "navTo('feed')" : '') + '">' +
+      '<div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">' + icon + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:14px;color:#fff;font-weight:' + (n.is_read ? '400' : '600') + ';">' + (n.from_name || 'Пользователь') + '</div>' +
+        '<div style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px;">' + (n.text || '') + '</div>' +
+        '<div style="font-size:11px;color:rgba(255,255,255,.25);margin-top:2px;">' + time + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function updateNotifBadge(count) {
+  var badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.style.display = 'flex';
+    badge.textContent = count > 99 ? '99+' : String(count);
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function checkUnreadNotifications() {
+  if (!API_TOKEN) return;
+  const res = await api('GET', '/api/notifications/unread');
+  if (res.ok) updateNotifBadge(res.data.unread || 0);
 }
 
 async function loadBilling() {
@@ -6344,6 +6418,10 @@ function navTo(page){
   }
   else if(page==='upload'){resetUploadForm();}
   else if(page==='create'){renderCreate();}
+  else if(page==='notifications'){
+    if (sharedVideo) { sharedVideo.pause(); sharedVideo.muted = true; }
+    loadNotifications();
+  }
   else if(page==='profile'){
     // Stop all feed video
     if (sharedVideo) { sharedVideo.pause(); sharedVideo.muted = true; }

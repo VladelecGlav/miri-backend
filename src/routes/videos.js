@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createNotification } from './notifications.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -349,6 +350,8 @@ router.post('/:id/like', authenticate, async (req, res) => {
     }
     await dbRun('INSERT INTO likes (id,user_id,video_id) VALUES ($1,$2,$3)', [uuid(), req.user.id, req.params.id]);
     await dbRun('UPDATE videos SET likes_count=likes_count+1 WHERE id=$1', [req.params.id]);
+    const likedVideo = await dbGet('SELECT user_id, title FROM videos WHERE id=$1', [req.params.id]);
+    if (likedVideo) await createNotification({ userId: likedVideo.user_id, type: 'like', fromId: req.user.id, videoId: req.params.id, text: 'лайкнул твоё видео «' + (likedVideo.title||'Видео') + '»' });
     res.json({ liked: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -371,6 +374,8 @@ router.post('/:id/comments', authenticate, async (req, res) => {
     await dbRun('INSERT INTO comments (id,user_id,video_id,text) VALUES ($1,$2,$3,$4)', [id, req.user.id, req.params.id, text.trim()]);
     await dbRun('UPDATE videos SET comments_count=comments_count+1 WHERE id=$1', [req.params.id]);
     const comment = await dbGet(`SELECT c.*,u.name,u.handle,u.avatar_url FROM comments c JOIN users u ON u.id=c.user_id WHERE c.id=$1`, [id]);
+    const commentedVideo = await dbGet('SELECT user_id, title FROM videos WHERE id=$1', [req.params.id]);
+    if (commentedVideo) await createNotification({ userId: commentedVideo.user_id, type: 'comment', fromId: req.user.id, videoId: req.params.id, text: 'прокомментировал твоё видео «' + (commentedVideo.title||'Видео') + '»' });
     res.status(201).json({ comment });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

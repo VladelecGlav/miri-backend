@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createNotification } from './notifications.js';
 import { v4 as uuid } from 'uuid';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
@@ -52,6 +53,7 @@ router.post('/:id/follow', authenticate, async (req, res) => {
       return res.json({ following: false });
     }
     await dbRun('INSERT INTO follows (id,follower_id,following_id) VALUES ($1,$2,$3)', [uuid(), req.user.id, followingId]);
+    await createNotification({ userId: followingId, type: 'follow', fromId: req.user.id, text: 'подписался на тебя' });
     res.json({ following: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
