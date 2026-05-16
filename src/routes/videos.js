@@ -135,6 +135,8 @@ router.get('/presign', authenticate, (req, res) => {
 
 async function fmt(v, viewerId) {
   const author = await dbGet('SELECT id,name,handle,avatar_url FROM users WHERE id=$1', [v.user_id]) || {};
+  const plRow = await dbGet('SELECT playlist_id FROM playlist_videos WHERE video_id=$1 LIMIT 1', [v.id]);
+  if (plRow) v.playlist_id = plRow.playlist_id;
   const liked = viewerId ? !!(await dbGet('SELECT 1 FROM likes WHERE user_id=$1 AND video_id=$2', [viewerId, v.id])) : false;
   return {
     id: v.id, title: v.title, description: v.description,
@@ -144,6 +146,7 @@ async function fmt(v, viewerId) {
     has_ai_badge: !!v.has_ai_badge, is_public: !!v.is_public, status: v.status,
     author: { id: author.id, name: author.name, handle: author.handle, avatar_url: author.avatar_url },
     liked, created_at: v.created_at,
+    playlist_id: v.playlist_id || null,
   };
 }
 

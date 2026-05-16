@@ -1842,6 +1842,7 @@ function buildFeed(){
           <div style="display:flex;align-items:center;gap:8px;">
             <span class="au-name" style="cursor:pointer;" onclick="openUserPage('${v._serverVideo && v._serverVideo.author ? v._serverVideo.author.id : v.id}')">@${v.a}</span>
             <span class="fp" id="ff${i}" onclick="fFlw(${i})">${fFollow.has(i)?'✓ Слежу':'+ Подписаться'}</span>
+            ${v._serverVideo && v._serverVideo.playlist_id ? '<span class="fp" style="background:rgba(242,193,46,.15);border-color:rgba(242,193,46,.3);color:#F2C12E;" onclick="openVideoPlaylist(\'' + (v._serverVideo.playlist_id) + '\')" >🎬 Плейлист</span>' : ''}
           </div>
         </div>
       </div>
@@ -4537,6 +4538,12 @@ function toggleUserFollow() {
 }
 
 let openPlaylistId = null;
+
+function openVideoPlaylist(playlistId) {
+  if (!playlistId) return;
+  // Открываем страницу плейлиста
+  openPlaylist(playlistId);
+}
 
 async function openPlaylist(id) {
   openPlaylistId = id;
