@@ -2784,6 +2784,9 @@ async function renderTasks() {
   var streak = res.data.streak || 0;
   var claimed = res.data.claimed || false;
 
+  // Проверяем разрешение уведомлений
+  var notifGranted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+
   var tasks = [
     {
       id: 'daily',
@@ -2794,7 +2797,17 @@ async function renderTasks() {
       total: 30,
       reward: 1,
       claimed: claimed,
-      action: claimDailyStreak,
+    },
+    {
+      id: 'notifications',
+      icon: '🔔',
+      title: 'Включить уведомления',
+      desc: 'Получай уведомления о лайках и подписчиках',
+      progress: notifGranted ? 1 : 0,
+      total: 1,
+      reward: 5,
+      claimed: notifGranted,
+      special: 'notifications',
     },
   ];
 
@@ -2807,7 +2820,10 @@ async function renderTasks() {
     var btnStyle = task.claimed
       ? 'padding:8px 20px;border-radius:10px;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-size:13px;font-weight:600;cursor:default;font-family:-apple-system,sans-serif;'
       : 'padding:8px 20px;border-radius:10px;background:#F2C12E;border:none;color:#0b0b0f;font-size:13px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;';
-    var btnText = task.claimed ? '✓ Получено' : 'Забрать +' + task.reward + ' 🪙';
+    var btnText = task.claimed ? '✓ Выполнено' : (task.special === 'notifications' ? 'Включить' : 'Забрать +' + task.reward + ' 🪙');
+    var btnClick = task.claimed ? '' :
+      task.special === 'notifications' ? 'onclick="enableNotificationsTask()"' :
+      'onclick="claimDailyStreak()"';
 
     card.innerHTML =
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
@@ -2816,7 +2832,7 @@ async function renderTasks() {
           '<div style="font-size:15px;font-weight:700;color:#fff;">' + task.title + '</div>' +
           '<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:2px;">' + task.desc + '</div>' +
         '</div>' +
-        '<button style="' + btnStyle + '" ' + (task.claimed ? '' : 'onclick="claimDailyStreak()"') + '>' + btnText + '</button>' +
+        '<button style="' + btnStyle + '" ' + btnClick + '>' + btnText + '</button>' +
       '</div>' +
       '<div style="background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;">' +
         '<div style="background:#F2C12E;height:100%;width:' + pct + '%;border-radius:4px;transition:width .3s;"></div>' +
@@ -2825,6 +2841,25 @@ async function renderTasks() {
 
     list.appendChild(card);
   });
+}
+
+async function enableNotificationsTask() {
+  try {
+    if (window.OneSignal) {
+      await OneSignal.Notifications.requestPermission();
+    } else {
+      await Notification.requestPermission();
+    }
+    if (Notification.permission === 'granted') {
+      showFeedHint('✅ Уведомления включены! +5 🪙');
+      // TODO: начислить токены за включение уведомлений
+      await renderTasks();
+    } else {
+      showFeedHint('❌ Разреши уведомления в настройках браузера');
+    }
+  } catch(e) {
+    showFeedHint('Ошибка: ' + e.message);
+  }
 }
 
 async function claimDailyStreak() {
