@@ -1341,8 +1341,11 @@ function loginWithGoogle() {
       showFeedHint('✅ Оплата прошла! Токены начислены');
       loadBilling();
   checkUnreadNotifications();
-  // Проверяем каждые 30 секунд
   setInterval(checkUnreadNotifications, 30000);
+  // Register existing user in OneSignal
+  var _savedUser = null;
+  try { _savedUser = JSON.parse(sessionStorage.getItem('miri_user_bak') || '{}'); } catch(e) {}
+  if (_savedUser?.id) registerOneSignal(_savedUser.id);
     }, 1500);
   }
   if (token || payment) {
@@ -1474,6 +1477,8 @@ async function handleAuth() {
   try { sessionStorage.setItem('miri_token_bak', API_TOKEN); } catch(e) {}
   try { sessionStorage.setItem('miri_user_bak', JSON.stringify(res.data.user)); } catch(e) {}
   saveUserData(res.data.user);
+  // Register in OneSignal
+  registerOneSignal(res.data.user.id);
   goOnboard(authMode === 'reg' ? res.data.user.name : null, res.data.user);
 }
 
@@ -2636,6 +2641,18 @@ function updateNotifBadge(count) {
   } else {
     badge.style.display = 'none';
   }
+}
+
+function registerOneSignal(userId) {
+  try {
+    if (window.OneSignal) {
+      OneSignal.login(userId);
+    } else if (window.OneSignalDeferred) {
+      OneSignalDeferred.push(function(OneSignal) {
+        OneSignal.login(userId);
+      });
+    }
+  } catch(e) { console.log('OneSignal register error:', e); }
 }
 
 async function checkUnreadNotifications() {
