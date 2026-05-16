@@ -8,6 +8,19 @@
 <meta name="apple-mobile-web-app-title" content="Miri">
 <meta name="theme-color" content="#F2C12E">
 <link rel="manifest" href="manifest.json">
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+OneSignalDeferred.push(async function(OneSignal) {
+  await OneSignal.init({
+    appId: "e7de7fa9-98c9-461e-af88-2b0ce053bfcb",
+    safari_web_id: "web.onesignal.auto.1de7b938-6047-48aa-bcdd-0245aac21a82",
+    notifyButton: { enable: false },
+    allowLocalhostAsSecureOrigin: true,
+  });
+  try { await OneSignal.Slidedown.promptPush(); } catch(e) {}
+});
+</script>
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Miri</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
