@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createNotification } from './notifications.js';
+import { createNotification } from './notify.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';

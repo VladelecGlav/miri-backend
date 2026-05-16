@@ -4,10 +4,8 @@ import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
-const ONESIGNAL_APP_ID  = 'e7de7fa9-98c9-461e-af88-2b0ce053bfcb';
-const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
-
-async function sendPush(userId, title, message) {
+// Push handled in utils/notify.js
+function _unused() {
   if (!ONESIGNAL_API_KEY) return;
   try {
     const r = await fetch('https://onesignal.com/api/v1/notifications', {
@@ -26,19 +24,7 @@ async function sendPush(userId, title, message) {
   } catch(e) { console.error('Push error:', e.message); }
 }
 
-export async function createNotification({ userId, type, fromId, videoId, text }) {
-  if (userId === fromId) return;
-  try {
-    await dbRun(
-      'INSERT INTO notifications (id,user_id,type,from_id,video_id,text) VALUES ($1,$2,$3,$4,$5,$6)',
-      [uuid(), userId, type, fromId||null, videoId||null, text||null]
-    );
-    const from = fromId ? await dbGet('SELECT name FROM users WHERE id=$1', [fromId]) : null;
-    const fromName = (from && from.name) ? from.name : 'Someone';
-    const titles = { like: 'New like', comment: 'New comment', follow: 'New follower' };
-    await sendPush(userId, titles[type] || 'Miri', fromName + ': ' + (text||''));
-  } catch(e) { console.error('createNotification:', e.message); }
-}
+// createNotification is in utils/notify.js
 
 router.get('/', authenticate, async (req, res) => {
   try {
