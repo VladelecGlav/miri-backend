@@ -2657,15 +2657,25 @@ function updateNotifBadge(count) {
 }
 
 function registerOneSignal(userId) {
-  try {
-    if (window.OneSignal) {
-      OneSignal.login(userId);
-    } else if (window.OneSignalDeferred) {
-      OneSignalDeferred.push(function(OneSignal) {
-        OneSignal.login(userId);
+  if (!userId) return;
+  console.log('Registering OneSignal for user:', userId);
+  function doRegister(OneSignal) {
+    try {
+      OneSignal.login(String(userId)).then(function() {
+        console.log('OneSignal login success');
+      }).catch(function(e) {
+        console.log('OneSignal login error:', e);
+        // Fallback: set external id directly
+        try { OneSignal.User.addAlias('external_id', String(userId)); } catch(e2) {}
       });
-    }
-  } catch(e) { console.log('OneSignal register error:', e); }
+    } catch(e) { console.log('OneSignal register error:', e); }
+  }
+  if (window.OneSignal && window.OneSignal.login) {
+    doRegister(window.OneSignal);
+  } else {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(doRegister);
+  }
 }
 
 async function checkUnreadNotifications() {
