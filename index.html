@@ -18,7 +18,6 @@ OneSignalDeferred.push(async function(OneSignal) {
     notifyButton: { enable: false },
     allowLocalhostAsSecureOrigin: true,
   });
-  try { await OneSignal.Slidedown.promptPush(); } catch(e) {}
   // Login user after init
   try {
     var su = null;
@@ -29,6 +28,11 @@ OneSignalDeferred.push(async function(OneSignal) {
       console.log('OneSignal login success');
     }
   } catch(e) { console.log('OneSignal login error:', e); }
+  // Запрашиваем разрешение явно
+  try {
+    const permission = await OneSignal.Notifications.requestPermission();
+    console.log('OneSignal permission:', permission);
+  } catch(e) { console.log('Permission error:', e); }
 });
 </script>
 <link rel="apple-touch-icon" href="icon-192.png">
