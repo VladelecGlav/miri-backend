@@ -1014,6 +1014,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
         <div class="p-tab" onclick="profTab('l')"><span>♥</span>Лайки</div>
         <div class="p-tab" onclick="profTab('s')"><span>👥</span>Подписки</div>
       </div>
+      <div onclick="openTasks()" style="margin:8px 16px 0;padding:10px 16px;background:rgba(242,193,46,.08);border:.5px solid rgba(242,193,46,.2);border-radius:12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">🎯</span>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:#fff;">Задания</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.4);">Выполняй и получай токены</div>
+          </div>
+        </div>
+        <span style="color:rgba(255,255,255,.3);font-size:18px;">›</span>
+      </div>
     </div>
     <div class="p-content" id="pContent" style="position:relative;z-index:2;padding-bottom:calc(60px + env(safe-area-inset-bottom,0));"></div>
     <!-- Playlist detail panel -->
@@ -1055,6 +1065,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
         <button id="searchTabUsers" onclick="setSearchTab('users')" style="padding:6px 16px;border-radius:20px;border:.5px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4);font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,sans-serif;">Люди</button>
       </div>
       <div id="searchResults"></div>
+    </div>
+  </div>
+
+  <!-- Tasks page -->
+  <div class="page" id="pageTasks" style="overflow-y:auto;">
+    <div style="padding:16px;padding-top:60px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <button onclick="navTo('profile')" style="background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);border-radius:50%;width:36px;height:36px;color:#fff;font-size:18px;cursor:pointer;">‹</button>
+        <div style="font-size:18px;font-weight:700;color:#fff;">🎯 Задания</div>
+      </div>
+      <div id="tasksList"></div>
     </div>
   </div>
 
@@ -2745,40 +2766,86 @@ function openSearchVideo(idx) {
 }
 
 // ── NOTIFICATIONS ────────────────────────────────────────
+// ── TASKS ────────────────────────────────────────────────
+async function openTasks() {
+  navTo('tasks');
+  await renderTasks();
+}
+
+async function renderTasks() {
+  var list = document.getElementById('tasksList');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:20px;color:rgba(255,255,255,.3);">⏳</div>';
+
+  // Загружаем streak статус
+  var res = await api('GET', '/api/auth/streak');
+  if (!res.ok) { list.innerHTML = '<div style="text-align:center;padding:20px;color:rgba(255,255,255,.3);">Ошибка</div>'; return; }
+
+  var streak = res.data.streak || 0;
+  var claimed = res.data.claimed || false;
+
+  var tasks = [
+    {
+      id: 'daily',
+      icon: '🔥',
+      title: 'Ежедневный вход',
+      desc: 'Заходи каждый день и получай токены',
+      progress: Math.min(streak, 30),
+      total: 30,
+      reward: 1,
+      claimed: claimed,
+      action: claimDailyStreak,
+    },
+  ];
+
+  list.innerHTML = '';
+  tasks.forEach(function(task) {
+    var card = document.createElement('div');
+    card.style.cssText = 'background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:12px;';
+
+    var pct = Math.round(task.progress / task.total * 100);
+    var btnStyle = task.claimed
+      ? 'padding:8px 20px;border-radius:10px;background:rgba(255,255,255,.06);border:.5px solid rgba(255,255,255,.1);color:rgba(255,255,255,.3);font-size:13px;font-weight:600;cursor:default;font-family:-apple-system,sans-serif;'
+      : 'padding:8px 20px;border-radius:10px;background:#F2C12E;border:none;color:#0b0b0f;font-size:13px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;';
+    var btnText = task.claimed ? '✓ Получено' : 'Забрать +' + task.reward + ' 🪙';
+
+    card.innerHTML =
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+        '<span style="font-size:32px;">' + task.icon + '</span>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:15px;font-weight:700;color:#fff;">' + task.title + '</div>' +
+          '<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:2px;">' + task.desc + '</div>' +
+        '</div>' +
+        '<button style="' + btnStyle + '" ' + (task.claimed ? '' : 'onclick="claimDailyStreak()"') + '>' + btnText + '</button>' +
+      '</div>' +
+      '<div style="background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;">' +
+        '<div style="background:#F2C12E;height:100%;width:' + pct + '%;border-radius:4px;transition:width .3s;"></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:6px;">День ' + task.progress + ' из ' + task.total + '</div>';
+
+    list.appendChild(card);
+  });
+}
+
+async function claimDailyStreak() {
+  var res = await api('POST', '/api/auth/streak');
+  if (res.ok) {
+    showFeedHint('✅ +' + res.data.bonus + ' токенов! День ' + res.data.streak);
+    if (res.data.balance !== undefined && userBilling) userBilling.balance = res.data.balance;
+    await renderTasks();
+  } else {
+    showFeedHint('❌ ' + (res.data?.error || 'Ошибка'));
+  }
+}
+
 // ── STREAK ───────────────────────────────────────────────
 async function checkStreak() {
   if (!API_TOKEN) return;
   try {
     const res = await api('GET', '/api/auth/streak');
     if (!res.ok || res.data.claimed) return;
-
-    // Показываем попап и забираем бонус
-    const claimRes = await api('POST', '/api/auth/streak');
-    if (!claimRes.ok) return;
-
-    const { streak, bonus, message } = claimRes.data;
-
-    // Обновляем попап
-    var fireEl = document.getElementById('streakFire');
-    var dayEl = document.getElementById('streakDay');
-    var msgEl = document.getElementById('streakMsg');
-    var bonusEl = document.getElementById('streakBonus');
-
-    if (streak >= 30) { if(fireEl) fireEl.textContent = '🏆'; }
-    else if (streak >= 7) { if(fireEl) fireEl.textContent = '⚡'; }
-
-    if (dayEl) dayEl.textContent = 'День ' + streak;
-    if (msgEl) msgEl.textContent = streak === 1 ? 'Добро пожаловать!' : streak >= 7 ? 'Невероятная серия!' : 'Ты заходишь каждый день!';
-    if (bonusEl) bonusEl.textContent = '+' + bonus + ' 🪙';
-
-    // Показываем попап
-    var popup = document.getElementById('streakPopup');
-    if (popup) popup.style.display = 'flex';
-
-    // Обновляем баланс
-    if (claimRes.data.balance !== undefined && userBilling) {
-      userBilling.balance = claimRes.data.balance;
-    }
+    // Показываем подсказку что есть награда
+    showFeedHint('🔥 Есть ежедневная награда! Зайди в Задания');
   } catch(e) {}
 }
 
@@ -6606,7 +6673,7 @@ function navTo(page){
     releaseWakeLock();
   }
 
-  const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile',plans:'pagePlans',notifications:'pageNotifications',search:'pageSearch'};
+  const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile',plans:'pagePlans',notifications:'pageNotifications',search:'pageSearch',tasks:'pageTasks'};
   showPage(map[page]);
   if(page==='feed'){
     // Stop any profile videos
