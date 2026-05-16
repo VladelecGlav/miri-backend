@@ -380,4 +380,22 @@ router.post('/:id/comments', authenticate, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/videos/search
+router.get('/search', optionalAuth, async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ videos: [] });
+  try {
+    const videos = await dbAll(
+      `SELECT v.*, u.name as author_name, u.handle as author_handle, u.avatar_url as author_avatar
+       FROM videos v JOIN users u ON u.id=v.user_id
+       WHERE v.status='published' AND v.is_public=1
+       AND (v.title ILIKE $1 OR v.description ILIKE $1 OR v.tags ILIKE $1)
+       ORDER BY v.likes_count DESC, v.views DESC LIMIT 30`,
+      [`%${q}%`]
+    );
+    const formatted = await Promise.all(videos.map(v => fmt(v, req.user?.id)));
+    res.json({ videos: formatted });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 export default router;
