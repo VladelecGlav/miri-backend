@@ -1356,9 +1356,16 @@ function loginWithGoogle() {
   checkUnreadNotifications();
   setInterval(checkUnreadNotifications, 30000);
   // Register existing user in OneSignal
-  var _savedUser = null;
-  try { _savedUser = JSON.parse(sessionStorage.getItem('miri_user_bak') || '{}'); } catch(e) {}
-  if (_savedUser?.id) registerOneSignal(_savedUser.id);
+  try {
+    var _su = store.get('miri_user');
+    if (_su) {
+      var _suObj = JSON.parse(_su);
+      if (_suObj?.id) {
+        // Ждём инициализации OneSignal
+        setTimeout(function() { registerOneSignal(_suObj.id); }, 2000);
+      }
+    }
+  } catch(e) {}
     }, 1500);
   }
   if (token || payment) {
