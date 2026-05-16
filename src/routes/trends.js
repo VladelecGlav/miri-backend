@@ -2,62 +2,19 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
-import crypto from 'crypto';
-
-// S3 upload via fetch (no SDK needed)
+// Preview stored as S3 URL via existing upload mechanism
 async function uploadPreviewToS3(base64Data, filename, mimeType) {
-  const buffer = Buffer.from(base64Data, 'base64');
-  const endpoint = process.env.S3_ENDPOINT || 'https://s3.twcstorage.ru';
-  const bucket   = process.env.S3_BUCKET    || 'miri-videos';
-  const region   = process.env.S3_REGION    || 'ru-1';
-  const key      = process.env.S3_ACCESS_KEY || '';
-  const secret   = process.env.S3_SECRET_KEY || '';
-
-  const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
-  const datetime = new Date().toISOString().replace(/[:-]/g,'').slice(0,15) + 'Z';
-
-  const signKey = (dateKey, regionKey, serviceKey, signingKey) => {
-    const hm = (k, d) => crypto.createHmac('sha256', k).update(d).digest();
-    return hm(hm(hm(hm('AWS4' + signingKey, dateKey), regionKey), serviceKey), 'aws4_request');
-  };
-
-  const payloadHash = crypto.createHash('sha256').update(buffer).digest('hex');
-  const host = endpoint.replace('https://','').replace('http://','');
-  const canonicalHeaders = 'host:' + host + '
-x-amz-content-sha256:' + payloadHash + '
-x-amz-date:' + datetime + '
-';
-  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
-  const canonicalReq = 'PUT
-/' + bucket + '/' + filename + '
-
-' + canonicalHeaders + '
-' + signedHeaders + '
-' + payloadHash;
-  const credScope = date + '/' + region + '/s3/aws4_request';
-  const strToSign = 'AWS4-HMAC-SHA256
-' + datetime + '
-' + credScope + '
-' + crypto.createHash('sha256').update(canonicalReq).digest('hex');
-  const signingKey = signKey(date, region, 's3', secret);
-  const signature = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
-  const auth = 'AWS4-HMAC-SHA256 Credential=' + key + '/' + credScope + ',SignedHeaders=' + signedHeaders + ',Signature=' + signature;
-
-  const resp = await fetch(endpoint + '/' + bucket + '/' + filename, {
-    method: 'PUT',
-    headers: {
-      'Authorization': auth,
-      'Content-Type': mimeType,
-      'x-amz-content-sha256': payloadHash,
-      'x-amz-date': datetime,
-      'x-amz-acl': 'public-read',
-    },
-    body: buffer,
-  });
-
-  if (!resp.ok) throw new Error('S3 upload failed: ' + resp.status);
-  return endpoint + '/' + bucket + '/' + filename;
+  try {
+    const { createS3Client, uploadBufferToS3 } = await import('./s3.js').catch(() => ({}));
+    if (uploadBufferToS3) {
+      const buffer = Buffer.from(base64Data, 'base64');
+      return await uploadBufferToS3(buffer, filename, mimeType);
+    }
+  } catch(e) {}
+  // Fallback: return null if S3 not available
+  return null;
 }
+
 
 const router = Router();
 
