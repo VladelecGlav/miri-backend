@@ -19,6 +19,16 @@ OneSignalDeferred.push(async function(OneSignal) {
     allowLocalhostAsSecureOrigin: true,
   });
   try { await OneSignal.Slidedown.promptPush(); } catch(e) {}
+  // Login user after init
+  try {
+    var su = null;
+    try { su = JSON.parse(localStorage.getItem('miri_user')); } catch(e2) {}
+    if (su && su.id) {
+      console.log('OneSignal login:', su.id);
+      await OneSignal.login(String(su.id));
+      console.log('OneSignal login success');
+    }
+  } catch(e) { console.log('OneSignal login error:', e); }
 });
 </script>
 <link rel="apple-touch-icon" href="icon-192.png">
