@@ -4,39 +4,52 @@ import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
-// Push handled in utils/notify.js
-function _unused() {
+const ONESIGNAL_APP_ID  = 'e7de7fa9-98c9-461e-af88-2b0ce053bfcb';
+const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY;
+
+async function sendPush(userId, title, message) {
   if (!ONESIGNAL_API_KEY) return;
   try {
+    const body = {
+      app_id: ONESIGNAL_APP_ID,
+      include_aliases: { external_id: [String(userId)] },
+      target_channel: 'push',
+      headings: { en: title, ru: title },
+      contents: { en: message, ru: message },
+    };
     const r = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: { 'Authorization': 'Key ' + ONESIGNAL_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        app_id: ONESIGNAL_APP_ID,
-        include_aliases: { external_id: [String(userId)] },
-        target_channel: 'push',
-        headings: { en: title, ru: title },
-        contents: { en: message, ru: message },
-      }),
+      body: JSON.stringify(body),
     });
     const d = await r.json();
-    console.log('Push sent:', d.id || JSON.stringify(d.errors));
+    console.log('Push result:', JSON.stringify(d).slice(0, 200));
   } catch(e) { console.error('Push error:', e.message); }
 }
 
-// createNotification is in utils/notify.js
+export async function createNotification({ userId, type, fromId, videoId, text }) {
+  if (!userId || userId === fromId) return;
+  try {
+    await dbRun(
+      'INSERT INTO notifications (id,user_id,type,from_id,video_id,text) VALUES ($1,$2,$3,$4,$5,$6)',
+      [uuid(), userId, type, fromId||null, videoId||null, text||null]
+    );
+    const from = fromId ? await dbGet('SELECT name FROM users WHERE id=$1', [fromId]) : null;
+    const fromName = from?.name || 'Someone';
+    const titles = { like: 'New like', comment: 'New comment', follow: 'New follower' };
+    await sendPush(userId, titles[type] || 'Miri', fromName + ': ' + (text||''));
+  } catch(e) { console.error('createNotification error:', e.message); }
+}
 
 router.get('/', authenticate, async (req, res) => {
   try {
     const notifs = await dbAll(
-      `SELECT n.*, u.name as from_name, u.avatar_url as from_avatar
-       FROM notifications n
+      `SELECT n.*, u.name as from_name FROM notifications n
        LEFT JOIN users u ON u.id=n.from_id
        WHERE n.user_id=$1 ORDER BY n.created_at DESC LIMIT 50`,
       [req.user.id]
     );
-    const unread = notifs.filter(n => !n.is_read).length;
-    res.json({ notifications: notifs, unread });
+    res.json({ notifications: notifs, unread: notifs.filter(n => !n.is_read).length });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

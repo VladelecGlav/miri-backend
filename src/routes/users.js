@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createNotification } from './notify.js';
+import { createNotification } from './notifications.js';
 import { v4 as uuid } from 'uuid';
 import { dbGet, dbAll, dbRun } from '../models/migrate.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
