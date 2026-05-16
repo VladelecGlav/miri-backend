@@ -87,6 +87,7 @@ export async function migrate() {
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_trends_official ON trends(is_official);
+    ALTER TABLE trends ADD COLUMN IF NOT EXISTS preview_video_url TEXT;
     CREATE INDEX IF NOT EXISTS idx_trends_user ON trends(user_id);
 
     CREATE TABLE IF NOT EXISTS playlists (

@@ -25,7 +25,7 @@ router.get('/', optionalAuth, async (req, res) => {
 
 // POST /api/trends — создать тренд
 router.post('/', authenticate, async (req, res) => {
-  const { title, emoji, category, difficulty, preview_color, steps } = req.body;
+  const { title, emoji, category, difficulty, preview_color, steps, preview_media } = req.body;
   if (!title) return res.status(400).json({ error: 'Название обязательно' });
   if (!steps || !Array.isArray(steps) || steps.length === 0)
     return res.status(400).json({ error: 'Добавь хотя бы один шаг' });
