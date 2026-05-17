@@ -5157,9 +5157,9 @@ function openVideoFromProfile(videoId) {
     _serverVideo: v,
   }));
 
-  _skipFeedReload = true; // не перезагружать ленту
+  _skipFeedReload = true;
+  window._feedLoaded = true; // не вызывать loadUserFeed
   navTo('feed');
-  // Rebuild feed with new serverVideos then go to slide 0
   requestAnimationFrame(() => {
     buildFeed();
     requestAnimationFrame(() => fGoTo(0, false));
@@ -6887,6 +6887,7 @@ function navTo(page){
   }
   else if(page==='profile'){
     if (!API_TOKEN) { showAuth(); return; }
+    window._feedLoaded = false; // сбросить чтобы лента обновилась при возврате
     // Stop all feed video
     if (sharedVideo) { sharedVideo.pause(); sharedVideo.muted = true; }
     profTab('v');
