@@ -5284,50 +5284,6 @@ function pfBuildFeed() {
     s.style.height = h + 'px';
     s.dataset.videoUrl = v.fileUrl || '';
 
-    // Touch interactions
-    var pfTapTimer = null;
-    var pfTapCount = 0;
-    s.addEventListener('touchstart', function(e) {
-      if (e.target.closest('.side-btns') || e.target.closest('.slide-info') || e.target.closest('.s-btn') || e.target.closest('.navbar')) return;
-      pfTapCount++;
-      if (pfTapCount === 1) {
-        pfTapTimer = setTimeout(function() {
-          pfTapCount = 0;
-          // Single tap - pause/play
-          if (pfSharedVideo) {
-            if (pfSharedVideo.paused) pfSharedVideo.play();
-            else pfSharedVideo.pause();
-          }
-        }, 250);
-      } else if (pfTapCount === 2) {
-        clearTimeout(pfTapTimer);
-        pfTapCount = 0;
-        // Double tap - like
-        pfLikeVideo(i);
-        // Heart animation
-        var heart = document.createElement('div');
-        heart.textContent = '❤️';
-        heart.style.cssText = 'position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) scale(0);font-size:80px;z-index:20;pointer-events:none;transition:transform .3s,opacity .5s;';
-        s.appendChild(heart);
-        requestAnimationFrame(function(){ heart.style.transform='translate(-50%,-50%) scale(1)'; });
-        setTimeout(function(){ heart.style.opacity='0'; setTimeout(function(){ heart.remove(); }, 500); }, 600);
-      }
-    }, { passive: true });
-
-    // x2 speed on hold
-    s.addEventListener('touchstart', function(e) {
-      if (e.target.closest('.side-btns') || e.target.closest('.navbar') || e.target.closest('.slide-info')) return;
-      if (pfSharedVideo) pfSharedVideo._holdTimer = setTimeout(function() {
-        pfSharedVideo.playbackRate = 2;
-      }, 300);
-    }, { passive: true });
-    s.addEventListener('touchend', function() {
-      if (pfSharedVideo) {
-        clearTimeout(pfSharedVideo._holdTimer);
-        pfSharedVideo.playbackRate = 1;
-      }
-    }, { passive: true });
-
     // Thumbnail
     var thumbHtml = '';
     if (v.fileUrl && v.fileUrl.startsWith('https://')) {
@@ -5371,30 +5327,71 @@ function pfBuildFeed() {
     track.appendChild(s);
   });
 
-  // Touch handling — same as main feed
-  var pfTouchStartY = null;
+  // Touch handling — exact copy of main feed
   var pfCurSlide = 0;
+  if (!vp._hasTouch) {
+    vp._hasTouch = true;
+    var pfDrag = false, pfSY = 0, pfDelta = 0;
+    var pfHoldTimer = null, pfIsHolding = false;
+    var pfLastTapTime = 0, pfMuteTapTimer = null;
 
-  var pfTouchStartX = null;
-  vp.addEventListener('touchstart', function(e) {
-    pfTouchStartY = e.touches[0].clientY;
-    pfTouchStartX = e.touches[0].clientX;
-  }, { passive: true });
+    vp.addEventListener('touchstart', function(e) {
+      pfDrag = true; pfSY = e.touches[0].clientY; pfDelta = 0; pfIsHolding = false;
+      var t = e.target;
+      if (t && (t.closest('.side-btns')||t.closest('.slide-info')||t.closest('.feed-bar')||t.closest('.s-btn')||t.tagName==='BUTTON')) { pfDrag=false; return; }
+      pfHoldTimer = setTimeout(function() {
+        pfIsHolding = true;
+        if (pfSharedVideo && !pfSharedVideo.paused) { pfSharedVideo.pause(); showFeedHint('⏸'); }
+      }, 350);
+    }, { passive: true });
 
-  vp.addEventListener('touchend', function(e) {
-    if (pfTouchStartY === null) return;
-    var dy = pfTouchStartY - e.changedTouches[0].clientY;
-    if (Math.abs(dy) > 40) {
-      if (dy > 0 && pfCurSlide < serverVideos.length - 1) {
-        pfCurSlide++;
-        pfGoTo(pfCurSlide, true);
-      } else if (dy < 0 && pfCurSlide > 0) {
-        pfCurSlide--;
-        pfGoTo(pfCurSlide, true);
+    vp.addEventListener('touchmove', function(e) {
+      if (!pfDrag) return;
+      pfDelta = e.touches[0].clientY - pfSY;
+      if (Math.abs(pfDelta) > 10) {
+        clearTimeout(pfHoldTimer);
+        if (pfIsHolding && pfSharedVideo && pfSharedVideo.paused) pfSharedVideo.play().catch(function(){});
+        pfIsHolding = true;
       }
-    }
-    pfTouchStartY = null;
-  }, { passive: true });
+      var h = vp.offsetHeight || window.innerHeight;
+      var base = -pfCurSlide * h;
+      var len = serverVideos.length;
+      var r = (pfCurSlide===0&&pfDelta>0)||(pfCurSlide===len-1&&pfDelta<0) ? pfDelta*0.3 : pfDelta;
+      var track = document.getElementById('pfReelTrack');
+      if (track) { track.style.transition='none'; track.style.transform='translateY('+(base+r)+'px)'; }
+    }, { passive: true });
+
+    vp.addEventListener('touchend', function(e) {
+      clearTimeout(pfHoldTimer);
+      if (!pfDrag) { pfIsHolding=false; return; }
+      pfDrag = false;
+      if (pfIsHolding && pfSharedVideo && pfSharedVideo.paused) {
+        pfSharedVideo.play().catch(function(){}); showFeedHint('▶'); pfIsHolding=false; return;
+      }
+      var len = serverVideos.length;
+      if (pfDelta < -60 && pfCurSlide < len-1) { pfCurSlide++; pfGoTo(pfCurSlide, true); }
+      else if (pfDelta > 60 && pfCurSlide > 0) { pfCurSlide--; pfGoTo(pfCurSlide, true); }
+      else if (!pfIsHolding && Math.abs(pfDelta) < 10) {
+        var now = Date.now(), diff = now - pfLastTapTime;
+        if (diff < 300 && diff > 0) {
+          pfLastTapTime = 0; clearTimeout(pfMuteTapTimer);
+          pfLikeVideo(pfCurSlide);
+          var slides = document.querySelectorAll('#pfReelTrack .reel-slide');
+          var sl = slides[pfCurSlide];
+          if (sl) { var h2=document.createElement('div'); h2.textContent='❤️'; h2.style.cssText='position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) scale(0);font-size:80px;z-index:20;pointer-events:none;transition:transform .3s,opacity .5s;'; sl.appendChild(h2); requestAnimationFrame(function(){h2.style.transform='translate(-50%,-50%) scale(1)';}); setTimeout(function(){h2.style.opacity='0';setTimeout(function(){h2.remove();},500);},600); }
+        } else {
+          pfLastTapTime = now; clearTimeout(pfMuteTapTimer);
+          pfMuteTapTimer = setTimeout(function() {
+            if (pfLastTapTime===now && pfSharedVideo) { pfSharedVideo.muted=!pfSharedVideo.muted; showFeedHint(pfSharedVideo.muted?'🔇':'🔊'); }
+          }, 300);
+        }
+      } else {
+        var h3=vp.offsetHeight||window.innerHeight, tr=document.getElementById('pfReelTrack');
+        if(tr){tr.style.transition='transform .3s cubic-bezier(.25,.46,.45,.94)';tr.style.transform='translateY('+(-pfCurSlide*h3)+'px)';}
+      }
+      pfIsHolding = false;
+    });
+  }
 }
 
 function pfGoTo(idx, anim) {
