@@ -387,6 +387,7 @@ html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0
 .ftab{font-size:14px;font-weight:500;color:rgba(255,255,255,.4);cursor:pointer;padding:3px 0;border-bottom:2px solid transparent;}
 .ftab.active{color:#fff;border-bottom-color:#F2C12E;}
 .reel-vp{position:absolute;top:0;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom,0));overflow:hidden;cursor:grab;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+#pfReelVp{position:absolute;top:0;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom,0));overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;}
 .reel-vp.drag{cursor:grabbing;}
 .reel-track{display:flex;flex-direction:column;will-change:transform;-webkit-user-select:none;user-select:none;}
 .reel-slide{width:100vw;flex-shrink:0;position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
@@ -1087,8 +1088,33 @@ html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0
   </div>
 
   <!-- Profile Feed page -->
-  <div class="page" id="pageProfileFeed">
-    <div id="pfTrack" style="position:absolute;inset:0;overflow:hidden;"></div>
+  <div class="page" id="pageProfileFeed" style="background:#000;">
+    <div class="reel-vp" id="pfReelVp">
+      <div class="reel-track" id="pfReelTrack"></div>
+    </div>
+    <!-- Top bar with back button -->
+    <div class="feed-bar" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()" style="justify-content:flex-start;gap:12px;">
+      <button onclick="pfClose()" style="background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.12);border-radius:50%;width:34px;height:34px;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">‹</button>
+      <span style="font-size:16px;font-weight:700;color:#fff;">Видео профиля</span>
+    </div>
+    <div class="navbar">
+      <div class="nb-item" onclick="window._feedLoaded=false;navTo('feed')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>
+        <span>Лента</span>
+      </div>
+      <div class="nb-item nb-upload-btn" onclick="navTo('upload')">
+        <div class="nb-upload-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0b0b0f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+        <span style="color:rgba(255,255,255,.55);font-size:11px;">Загрузить</span>
+      </div>
+      <div class="nb-create" onclick="navTo('create')">
+        <div class="nb-create-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <span class="nb-create-lbl">Создать</span>
+      </div>
+      <div class="nb-item on" onclick="pfClose()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>Профиль</span>
+      </div>
+    </div>
   </div>
 
   <!-- Notifications page -->
@@ -5189,124 +5215,152 @@ function openVideoFromProfile(videoId) {
   const vids = userVideos || [];
   if (!vids.length) return;
   const startIdx = Math.max(0, vids.findIndex(v => v.id === videoId));
-  openProfileFeed(vids, startIdx);
+  // Convert to feed format
+  serverVideos = vids.map(function(v) {
+    return {
+      t: v.title || 'Видео',
+      a: v.author?.handle || '',
+      av: (uName||'U')[0].toUpperCase(),
+      avBg: '#F2C12E',
+      id: v.author?.id || v.user_id || '',
+      bg: 'linear-gradient(175deg,#0f2027,#203a43,#2c5364)',
+      lk: String(v.likes_count || 0),
+      cm: String(v.comments_count || 0),
+      tg: Array.isArray(v.tags) ? v.tags.map(t=>'#'+t).join(' ') : '',
+      fileUrl: v.file_url,
+      _serverVideo: v,
+    };
+  });
+  pfVids = vids;
+  pfCurIdx = startIdx;
+  navTo('profilefeed');
+  setTimeout(function() {
+    pfBuildFeed(startIdx);
+  }, 50);
+}
+
+function pfClose() {
+  if (pfVideo) { pfVideo.pause(); pfVideo.src=''; pfVideo=null; }
+  navTo('profile');
 }
 
 var pfCurIdx = 0;
 var pfVids = [];
 var pfVideo = null;
 var pfStartY = null;
+var pfSharedVideo = null;
 
 function openProfileFeed(vids, startIdx) {
   pfVids = vids;
   pfCurIdx = startIdx;
   navTo('profilefeed');
-  setTimeout(function() { pfBuild(pfCurIdx, 0); }, 50);
+  setTimeout(function() { pfBuildFeed(startIdx); }, 50);
 }
 
-function pfBuild(idx, dir) {
-  var track = document.getElementById('pfTrack');
-  if (!track) return;
-  var v = pfVids[idx];
-  if (!v) return;
+function pfBuildFeed(startIdx) {
+  var track = document.getElementById('pfReelTrack');
+  var vp = document.getElementById('pfReelVp');
+  if (!track || !vp) return;
 
-  if (pfVideo) { pfVideo.pause(); pfVideo.src = ''; pfVideo = null; }
+  if (pfSharedVideo) { pfSharedVideo.pause(); pfSharedVideo.src=''; }
+  pfSharedVideo = null;
 
   var h = window.innerHeight;
   track.innerHTML = '';
+  track.style.transform = '';
 
-  var slide = document.createElement('div');
-  slide.style.cssText = 'position:absolute;inset:0;background:#000;';
-  if (dir !== 0) {
-    slide.style.transform = 'translateY(' + (dir > 0 ? '100%' : '-100%') + ')';
-    slide.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1)';
-    setTimeout(function(){ slide.style.transform = 'translateY(0)'; }, 20);
+  serverVideos.forEach(function(v, i) {
+    var s = document.createElement('div');
+    s.className = 'reel-slide';
+    s.style.height = h + 'px';
+    s.dataset.videoUrl = v.fileUrl || '';
+    s.innerHTML = '<div class="slide-bg" style="background:' + (v.bg||'#000') + '"></div>' +
+      (v.fileUrl && v.fileUrl.startsWith('https://') ? '<video id="pfthumb_'+i+'" muted playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:opacity .3s;" onloadedmetadata="this.currentTime=0.1;this.pause();"><source src="'+v.fileUrl+'"></video>' : '') +
+      '<div class="vig"></div>' +
+      '<div class="slide-info"><div class="s-author"><div class="s-av" style="background:' + (v.avBg||'#F2C12E') + '">' + (v.av||'M') + '</div><div class="s-meta"><div class="s-name">@' + (v.a||'') + '</div></div></div>' +
+      '<div class="v-title">' + (v.t||'') + '</div>' +
+      (v._serverVideo?.description ? '<div class="v-desc"><span class="v-desc-text" id="pfdesc_'+i+'">' + v._serverVideo.description + '</span></div>' : '') +
+      '<div class="v-tags">' + (v.tg||'') + '</div></div>' +
+      '<div class="side-btns"><div style="position:relative;"><div class="s-btn" id="pfLikeBtn'+i+'" onclick="pfLike('+i+')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span id="pffl'+i+'">' + (v.lk||'0') + '</span></div></div><div class="s-btn" onclick="openComments2('+i+')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>' + (v.cm||'0') + '</span></div><div class="s-btn" onclick="pfShare('+i+')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span>Репост</span></div></div>';
+    track.appendChild(s);
+  });
+
+  // Same scroll logic as main feed
+  var pfCur = startIdx;
+  vp.scrollTop = startIdx * h;
+
+  // Setup shared video for playback
+  if (!pfSharedVideo) {
+    pfSharedVideo = document.createElement('video');
+    pfSharedVideo.setAttribute('playsinline','');
+    pfSharedVideo.setAttribute('webkit-playsinline','');
+    pfSharedVideo.loop = true;
+    pfSharedVideo.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2;';
   }
-
-  // Video
-  if (v.file_url && v.file_url.startsWith('https://')) {
-    var vid = document.createElement('video');
-    vid.src = v.file_url;
-    vid.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;';
-    vid.autoplay = true; vid.loop = true; vid.playsInline = true;
-    vid.setAttribute('playsinline',''); vid.setAttribute('webkit-playsinline','');
-    slide.appendChild(vid);
-    pfVideo = vid;
-  }
-
-  // Gradient
-  var grad = document.createElement('div');
-  grad.style.cssText = 'position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 45%,rgba(0,0,0,.2) 100%);pointer-events:none;';
-  slide.appendChild(grad);
-
-  // Back button
-  var back = document.createElement('button');
-  back.textContent = '‹';
-  back.style.cssText = 'position:absolute;top:max(env(safe-area-inset-top,44px),16px);left:12px;z-index:10;background:rgba(0,0,0,.5);border:.5px solid rgba(255,255,255,.2);border-radius:50%;width:36px;height:36px;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;';
-  back.onclick = function() {
-    if (pfVideo) { pfVideo.pause(); pfVideo.src = ''; pfVideo = null; }
-    navTo('profile');
-  };
-  slide.appendChild(back);
-
-  // Counter
-  var counter = document.createElement('div');
-  counter.style.cssText = 'position:absolute;top:max(env(safe-area-inset-top,44px),16px);right:12px;background:rgba(0,0,0,.5);border-radius:20px;padding:4px 12px;font-size:12px;color:#fff;z-index:10;';
-  counter.textContent = (idx+1) + ' / ' + pfVids.length;
-  slide.appendChild(counter);
-
-  // Info
-  var info = document.createElement('div');
-  info.style.cssText = 'position:absolute;bottom:calc(70px + env(safe-area-inset-bottom,0));left:16px;right:80px;z-index:5;';
-  info.innerHTML = '<div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:4px;">' + (v.title||'') + '</div>' +
-    (v.description ? '<div style="font-size:13px;color:rgba(255,255,255,.65);">' + v.description + '</div>' : '');
-  slide.appendChild(info);
-
-  // Right buttons
-  var sidebar = document.createElement('div');
-  sidebar.style.cssText = 'position:absolute;right:14px;bottom:calc(80px + env(safe-area-inset-bottom,0));display:flex;flex-direction:column;gap:20px;align-items:center;z-index:5;';
-
-  var likeBtn = document.createElement('div');
-  likeBtn.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;';
-  likeBtn.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span style="font-size:12px;color:#fff;">' + (v.likes_count||0) + '</span>';
-  var liked = false;
-  likeBtn.onclick = async function() {
-    if (!API_TOKEN) { showAuth(); return; }
-    liked = !liked;
-    likeBtn.querySelector('svg').style.fill = liked ? '#ff4b6e' : 'none';
-    likeBtn.querySelector('svg').style.stroke = liked ? '#ff4b6e' : '#fff';
-    await api('POST', '/api/videos/' + v.id + '/like');
-  };
-  sidebar.appendChild(likeBtn);
-
-  var shareBtn = document.createElement('div');
-  shareBtn.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;';
-  shareBtn.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span style="font-size:12px;color:#fff;">Репост</span>';
-  shareBtn.onclick = function() { if (navigator.share) navigator.share({title: v.title, url: location.href}); };
-  sidebar.appendChild(shareBtn);
-
-  slide.appendChild(sidebar);
-
-  // Navbar
-  var nb = document.createElement('div');
-  nb.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:#0a0a0a;border-top:.5px solid rgba(255,255,255,.08);display:flex;justify-content:space-around;align-items:center;padding:8px 0;padding-bottom:env(safe-area-inset-bottom,0);z-index:10;';
-  nb.innerHTML = '<div onclick="if(pfVideo){pfVideo.pause();pfVideo.src=\'\';pfVideo=null;}navTo(\'profile\')" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:rgba(255,255,255,.8);font-size:11px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Профиль</div>';
-  slide.appendChild(nb);
+  pfPlaySlide(startIdx);
 
   // Swipe
-  slide.addEventListener('touchstart', function(e){ pfStartY = e.touches[0].clientY; }, {passive:true});
-  slide.addEventListener('touchend', function(e){
-    if (pfStartY === null) return;
-    var dy = pfStartY - e.changedTouches[0].clientY;
-    if (Math.abs(dy) > 50) {
-      if (dy > 0 && pfCurIdx < pfVids.length-1) { pfCurIdx++; pfBuild(pfCurIdx, 1); }
-      else if (dy < 0 && pfCurIdx > 0) { pfCurIdx--; pfBuild(pfCurIdx, -1); }
+  var pfStartY2 = null;
+  vp.ontouchstart = function(e){ pfStartY2 = e.touches[0].clientY; };
+  vp.ontouchend = function(e){
+    if (pfStartY2 === null) return;
+    var dy = pfStartY2 - e.changedTouches[0].clientY;
+    if (Math.abs(dy) > 40) {
+      if (dy > 0 && pfCur < serverVideos.length-1) { pfCur++; pfGoTo(pfCur); }
+      else if (dy < 0 && pfCur > 0) { pfCur--; pfGoTo(pfCur); }
     }
-    pfStartY = null;
-  }, {passive:true});
-
-  track.appendChild(slide);
+    pfStartY2 = null;
+  };
 }
+
+function pfGoTo(idx) {
+  var h = window.innerHeight;
+  var vp = document.getElementById('pfReelVp');
+  var track = document.getElementById('pfReelTrack');
+  if (!track) return;
+  track.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1)';
+  track.style.transform = 'translateY(' + (-idx * h) + 'px)';
+  setTimeout(function(){ pfPlaySlide(idx); }, 320);
+}
+
+function pfPlaySlide(idx) {
+  var track = document.getElementById('pfReelTrack');
+  if (!track) return;
+  var slides = track.querySelectorAll('.reel-slide');
+  var slide = slides[idx];
+  if (!slide) return;
+  var url = serverVideos[idx]?.fileUrl;
+  if (!url || !url.startsWith('https://')) return;
+
+  if (pfSharedVideo.parentNode !== slide) {
+    if (pfSharedVideo.parentNode) pfSharedVideo.parentNode.removeChild(pfSharedVideo);
+    slide.insertBefore(pfSharedVideo, slide.firstChild);
+  }
+  var thumb = slide.querySelector('[id^="pfthumb_"]');
+  if (thumb) { thumb.style.opacity='0'; thumb.style.zIndex='0'; }
+
+  pfSharedVideo.style.zIndex = '2';
+  if (pfSharedVideo.src !== url) { pfSharedVideo.src = url; pfSharedVideo.load(); }
+  else { pfSharedVideo.currentTime = 0; }
+  pfSharedVideo.muted = false;
+  pfSharedVideo.play().catch(function(){ pfSharedVideo.muted=true; pfSharedVideo.play(); });
+}
+
+function pfLike(i) {
+  if (!API_TOKEN) { showAuth(); return; }
+  var v = serverVideos[i];
+  if (!v?._serverVideo) return;
+  api('POST', '/api/videos/' + v._serverVideo.id + '/like');
+  var btn = document.getElementById('pfLikeBtn' + i);
+  var cnt = document.getElementById('pffl' + i);
+  if (btn) { var svg = btn.querySelector('svg'); if(svg){ var liked = svg.style.fill==='#ff4b6e'; svg.style.fill = liked?'none':'#ff4b6e'; svg.style.stroke = liked?'#fff':'#ff4b6e'; if(cnt) cnt.textContent = String(parseInt(cnt.textContent||'0') + (liked?-1:1)); } }
+}
+
+function pfShare(i) {
+  var v = serverVideos[i];
+  if (navigator.share) navigator.share({title: v?.t||'Видео', url: location.href});
+}
+
 
 
 function openProfileFeedPopup(vids, startIdx) {
