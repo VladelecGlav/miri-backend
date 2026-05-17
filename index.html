@@ -5375,8 +5375,10 @@ function pfBuildFeed() {
   var pfTouchStartY = null;
   var pfCurSlide = 0;
 
+  var pfTouchStartX = null;
   vp.addEventListener('touchstart', function(e) {
     pfTouchStartY = e.touches[0].clientY;
+    pfTouchStartX = e.touches[0].clientX;
   }, { passive: true });
 
   vp.addEventListener('touchend', function(e) {
@@ -5397,15 +5399,17 @@ function pfBuildFeed() {
 
 function pfGoTo(idx, anim) {
   var track = document.getElementById('pfReelTrack');
-  var h = window.innerHeight;
-  if (!track) return;
-  if (anim) {
-    track.style.transition = 'transform .35s cubic-bezier(.4,0,.2,1)';
-  } else {
+  var vp = document.getElementById('pfReelVp');
+  if (!track || !vp) return;
+  var h = vp.offsetHeight || window.innerHeight;
+  if (!anim) {
     track.style.transition = 'none';
+  } else {
+    track.style.transition = 'transform .38s cubic-bezier(.25,.46,.45,.94)';
   }
   track.style.transform = 'translateY(' + (-idx * h) + 'px)';
-  setTimeout(function() { pfPlayVideo(idx); }, anim ? 350 : 50);
+  if (!anim) requestAnimationFrame(function(){ track.style.transition = ''; });
+  setTimeout(function() { pfPlayVideo(idx); }, anim ? 380 : 50);
 }
 
 function pfPlayVideo(idx) {
