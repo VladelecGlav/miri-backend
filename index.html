@@ -1668,18 +1668,10 @@ async function loadMoreVideos() {
 }
 
 function addSlidesToFeed(newVids, startIdx) {
-  var track = document.getElementById('reelTrack');
-  if (!track) { buildFeed(); return; }
-  var h = window.innerHeight;
-  newVids.forEach(function(v, i) {
-    var idx = startIdx + i;
-    var s = document.createElement('div');
-    s.className = 'reel-slide';
-    s.style.height = h + 'px';
-    s.dataset.videoUrl = v.fileUrl || '';
-    s.innerHTML = '<div class="slide-bg" style="background:' + (v.bg||'#000') + '"></div><div class="vig"></div>';
-    track.appendChild(s);
-  });
+  // Просто перестраиваем ленту с новыми видео, оставаясь на текущей позиции
+  var cur = fCur;
+  buildFeed();
+  fGoTo(cur, false);
 }
 
 let serverVideos = null;
@@ -4762,6 +4754,7 @@ async function openPlaylistVideo(plId, idx) {
 
   closePlaylist();
   _skipFeedReload = true;
+  window._feedLoaded = true; // не перезагружать ленту
   navTo('feed');
   requestAnimationFrame(function() {
     buildFeed();

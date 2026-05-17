@@ -185,7 +185,7 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
 
 router.get('/feed', optionalAuth, async (req, res) => {
   const page  = Math.max(1, parseInt(req.query.page)||1);
-  const limit = Math.min(50, parseInt(req.query.limit)||20);
+  const limit = Math.min(100, parseInt(req.query.limit)||30);
 
   try {
     const userId = req.user?.id;
