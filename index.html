@@ -1725,7 +1725,6 @@ async function switchFeedTab(tab) {
   if (tabForYou) tabForYou.className = 'ftab' + (tab === 'foryou' ? ' active' : '');
 
   if (tab === 'foryou') {
-    // Only reload if not showing profile videos
     if (!window._profileVideosMode) {
       window._feedLoaded = false;
       await loadUserFeed();
@@ -4503,10 +4502,32 @@ function openUserVideo(idx) {
   // Close user page and go to feed
   document.getElementById('userPage').classList.remove('open');
   _skipFeedReload = true;
+  window._profileVideosMode = true;
+  window._feedLoaded = true;
   navTo('feed');
   requestAnimationFrame(() => {
     buildFeed();
-    requestAnimationFrame(() => fGoTo(0, false));
+    requestAnimationFrame(() => {
+      fGoTo(0, false);
+      // Show back button
+      var feedBar = document.querySelector('.feed-bar');
+      var old = document.getElementById('profBackBtn');
+      if (old) old.remove();
+      if (feedBar) {
+        var btn = document.createElement('button');
+        btn.id = 'profBackBtn';
+        btn.textContent = '‹';
+        btn.style.cssText = 'position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);border:.5px solid rgba(255,255,255,.2);border-radius:50%;width:34px;height:34px;color:#fff;font-size:22px;cursor:pointer;z-index:20;';
+        btn.onclick = function() {
+          window._profileVideosMode = false;
+          window._feedLoaded = false;
+          btn.remove();
+          navTo('profile');
+        };
+        feedBar.style.position = 'relative';
+        feedBar.appendChild(btn);
+      }
+    });
   });
 }
 
@@ -7020,7 +7041,12 @@ function navTo(page){
       const allVids = document.querySelectorAll('#reelTrack video');
       allVids.forEach(v => { v.pause(); v.currentTime = 0; });
     } catch(e) {}
-    releaseWakeLock();
+    if (window._profileVideosMode) {
+      window._profileVideosMode = false;
+      window._feedLoaded = false;
+      var pb = document.getElementById('profBackBtn');
+      if (pb) pb.remove();
+    }
   }
 
   const map={feed:'pageFeed',upload:'pageUpload',create:'pageCreate',profile:'pageProfile',plans:'pagePlans',notifications:'pageNotifications',search:'pageSearch',tasks:'pageTasks'};
