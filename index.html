@@ -406,10 +406,11 @@ html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0
 .au-name{font-size:14px;font-weight:700;color:#fff;}
 .fp{margin-left:auto;background:rgba(242,193,46,.2);border:.5px solid rgba(242,193,46,.5);border-radius:6px;padding:4px 10px;font-size:11px;color:#F2C12E;font-weight:700;cursor:pointer;}
 .v-title{font-size:16px;font-weight:800;color:#fff;line-height:1.3;margin-bottom:5px;letter-spacing:-.3px;}
-.v-desc{font-size:13px;color:rgba(255,255,255,.65);margin-top:2px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;}
-.v-desc.expanded{display:block;-webkit-line-clamp:unset;}
-.v-desc-more{color:#F2C12E;font-size:13px;font-weight:600;margin-left:4px;cursor:pointer;}
-.v-desc.expanded .v-desc-more{display:none;}
+.v-desc{font-size:13px;color:rgba(255,255,255,.65);margin-top:2px;line-height:1.4;}
+.v-desc-text{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+.v-desc-text.expanded{display:block;-webkit-line-clamp:unset;}
+.v-desc-more{color:#F2C12E;font-size:13px;font-weight:600;cursor:pointer;display:none;}
+.v-desc-more.visible{display:inline;}
 .v-tags{font-size:12px;color:rgba(255,255,255,.45);}
 .prog-bar{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.15);z-index:6;}
 .prog-fill{height:100%;background:#F2C12E;width:0%;}
@@ -1875,7 +1876,7 @@ function buildFeed(){
       ${v._serverVideo && v._serverVideo.description ? `
       <div class="v-desc" id="vdesc_${i}">
         <span class="v-desc-text" id="vdesc_txt_${i}">${v._serverVideo.description}</span>
-        <span class="v-desc-more" id="vdesc_more_${i}" onclick="expandDesc(${i})">ещё</span>
+        <br><span class="v-desc-more" id="vdesc_more_${i}" onclick="expandDesc(${i})">ещё</span>
       </div>` : ''}
       <div class="v-tags">${v.tg}</div>
       <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:4px;display:flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span id="views${i}">${v.views||0}</span></div>
@@ -5479,8 +5480,20 @@ function closeComments() {
 }
 
 function expandDesc(i) {
-  var el = document.getElementById('vdesc_' + i);
-  if (el) el.classList.toggle('expanded');
+  var txt = document.getElementById('vdesc_txt_' + i);
+  var btn = document.getElementById('vdesc_more_' + i);
+  if (txt) txt.classList.add('expanded');
+  if (btn) btn.style.display = 'none';
+}
+
+function checkDescOverflow(i) {
+  var txt = document.getElementById('vdesc_txt_' + i);
+  var btn = document.getElementById('vdesc_more_' + i);
+  if (!txt || !btn) return;
+  // Check if text is clamped
+  if (txt.scrollHeight > txt.clientHeight + 2) {
+    btn.classList.add('visible');
+  }
 }
 
 function shareVideo(i) {
