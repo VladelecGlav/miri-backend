@@ -1642,21 +1642,21 @@ async function loadUserFeed(page = 1) {
     feedHasMore = page < (pagination.pages || 1);
     feedCurrentPage = page;
 
+    // Фильтруем битые видео (нет URL или локальный путь)
+    const validVids = serverVids.filter(function(v) {
+      return v.fileUrl && v.fileUrl.startsWith('http');
+    });
+
     if (page === 1) {
-      if (serverVids.length > 0) {
-        serverVideos = serverVids.length >= 3
-          ? serverVids
-          : [...serverVids, ...VIDS.slice(0, 3 - serverVids.length)];
-      } else {
-        serverVideos = VIDS;
-      }
+      serverVideos = validVids.length > 0 ? validVids : [];
       buildFeed();
     } else {
-      // Добавляем новые видео в конец ленты
-      if (serverVids.length > 0) {
-        serverVideos = [...(serverVideos || []), ...serverVids];
-        buildFeed();
-        fGoTo(fCur, false); // остаёмся на текущем
+      // Добавляем новые в конец без перестройки ленты
+      if (validVids.length > 0) {
+        var prevCount = (serverVideos || []).length;
+        serverVideos = [...(serverVideos || []), ...validVids];
+        // Добавляем слайды без полной перестройки
+        addSlidesToFeed(validVids, prevCount);
       }
     }
   }
@@ -1665,6 +1665,21 @@ async function loadUserFeed(page = 1) {
 async function loadMoreVideos() {
   if (!feedHasMore || feedLoading) return;
   await loadUserFeed(feedCurrentPage + 1);
+}
+
+function addSlidesToFeed(newVids, startIdx) {
+  var track = document.getElementById('reelTrack');
+  if (!track) { buildFeed(); return; }
+  var h = window.innerHeight;
+  newVids.forEach(function(v, i) {
+    var idx = startIdx + i;
+    var s = document.createElement('div');
+    s.className = 'reel-slide';
+    s.style.height = h + 'px';
+    s.dataset.videoUrl = v.fileUrl || '';
+    s.innerHTML = '<div class="slide-bg" style="background:' + (v.bg||'#000') + '"></div><div class="vig"></div>';
+    track.appendChild(s);
+  });
 }
 
 let serverVideos = null;
@@ -6853,10 +6868,10 @@ function navTo(page){
       v.pause(); v.src = '';
     });
     if (_skipFeedReload) {
-      // Открываем из профиля — не перезагружаем ленту
       _skipFeedReload = false;
-    } else {
-      buildFeed();
+    } else if (!window._feedLoaded) {
+      // Загружаем ленту только один раз
+      window._feedLoaded = true;
       loadUserFeed();
     }
     requestWakeLock();
