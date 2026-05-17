@@ -43,7 +43,7 @@ OneSignalDeferred.push(async function(OneSignal) {
 <style>
 /* fonts loaded from system */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
-html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0b0b0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
 #app{width:100vw;height:100vh;height:100dvh;background:#0b0b0f;position:relative;overflow:hidden;display:flex;flex-direction:column;}
 
 /* ── TREND CARDS ── */
@@ -296,7 +296,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0b0b0f;font-family:
 .safe-bottom{height:env(safe-area-inset-bottom,0px);}
 
 /* PAGES */
-.page{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .3s ease;overflow:hidden;}
+.page{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .3s ease;overflow:hidden;}
 .page.active{opacity:1;pointer-events:all;}
 
 /* ORBS */
