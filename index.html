@@ -1720,8 +1720,11 @@ async function switchFeedTab(tab) {
   if (tabForYou) tabForYou.className = 'ftab' + (tab === 'foryou' ? ' active' : '');
 
   if (tab === 'foryou') {
-    // Load regular feed
-    await loadUserFeed();
+    // Only reload if not showing profile videos
+    if (!window._profileVideosMode) {
+      window._feedLoaded = false;
+      await loadUserFeed();
+    }
   } else {
     // Load videos from followed users
     await loadSubscriptionsFeed();
@@ -5158,7 +5161,8 @@ function openVideoFromProfile(videoId) {
   }));
 
   _skipFeedReload = true;
-  window._feedLoaded = true; // не вызывать loadUserFeed
+  window._feedLoaded = true;
+  window._profileVideosMode = true; // блокируем перезагрузку
   navTo('feed');
   requestAnimationFrame(() => {
     buildFeed();
@@ -6887,7 +6891,8 @@ function navTo(page){
   }
   else if(page==='profile'){
     if (!API_TOKEN) { showAuth(); return; }
-    window._feedLoaded = false; // сбросить чтобы лента обновилась при возврате
+    window._feedLoaded = false;
+    window._profileVideosMode = false;
     // Stop all feed video
     if (sharedVideo) { sharedVideo.pause(); sharedVideo.muted = true; }
     profTab('v');
