@@ -658,8 +658,7 @@ html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0
 .user-vg-v{position:absolute;bottom:5px;left:5px;font-size:9px;color:#fff;font-weight:700;display:flex;align-items:center;gap:2px;}
 
 /* NAVBAR */
-.navbar{background:#0a0a0a;border-top:.5px solid rgba(255,255,255,.08);display:flex;justify-content:space-around;align-items:center;padding:8px 0;flex-shrink:0;position:absolute;bottom:constant(safe-area-inset-bottom);bottom:env(safe-area-inset-bottom);left:0;right:0;z-index:15;}
-.navbar-safe{height:0;height:constant(safe-area-inset-bottom);height:env(safe-area-inset-bottom);background:#0a0a0a;position:absolute;bottom:0;left:0;right:0;z-index:14;}
+.navbar{background:#0a0a0a;border-top:.5px solid rgba(255,255,255,.08);display:flex;justify-content:space-around;align-items:center;padding:8px 0;flex-shrink:0;position:absolute;bottom:0;left:0;right:0;z-index:15;}
 /* PWA standalone — no address bar, adjust navbar */
 @media all and (display-mode: standalone) {
   .navbar { padding-bottom: env(safe-area-inset-bottom, 0) !important; padding-top: 6px; }
@@ -907,7 +906,6 @@ html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0
         <span id="notifBadge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;border-radius:50%;min-width:14px;height:14px;line-height:14px;text-align:center;"></span>
       </div>
     </div>
-    <div class="navbar-safe"></div>
     <div class="navbar">
       <div class="nb-item on" onclick="navTo('feed')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>
@@ -6891,27 +6889,6 @@ function showAuth() {
   const auth = document.getElementById('pageAuth');
   if (auth) auth.classList.add('active');
 }
-
-// Fix iOS PWA navbar
-(function fixIOSNavbar() {
-  function applyFix() {
-    var navbars = document.querySelectorAll('.navbar');
-    var windowH = window.innerHeight;
-    var documentH = document.documentElement.clientHeight;
-    var diff = documentH - windowH;
-    if (diff > 0) {
-      navbars.forEach(function(nb) {
-        nb.style.paddingBottom = (diff + 8) + 'px';
-      });
-    } else if (/iphone|ipad|ipod/i.test(navigator.userAgent) && window.navigator.standalone) {
-      navbars.forEach(function(nb) {
-        nb.style.paddingBottom = '34px';
-      });
-    }
-  }
-  window.addEventListener('load', applyFix);
-  window.addEventListener('resize', applyFix);
-})();
 
 (function init() {
   // Immediately show feed or auth based on stored token — no flash
