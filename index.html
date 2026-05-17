@@ -5437,8 +5437,15 @@ function pfPlayVideo(idx) {
   } else {
     pfSharedVideo.currentTime = 0;
   }
+  // На мобильных нужно взаимодействие - пробуем с звуком, fallback muted
   pfSharedVideo.muted = false;
-  pfSharedVideo.play().catch(function() { pfSharedVideo.muted = true; pfSharedVideo.play(); });
+  var playPromise = pfSharedVideo.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(function() {
+      pfSharedVideo.muted = true;
+      pfSharedVideo.play().catch(function(){});
+    });
+  }
 }
 
 function pfExpandDesc(i) {
@@ -7150,7 +7157,7 @@ document.addEventListener('visibilitychange', function() {
 function navTo(page){
   // Stop profile feed video when leaving
   if (page !== 'profilefeed') {
-    if (pfSharedVideo) { pfSharedVideo.pause(); pfSharedVideo.src = ''; }
+    if (pfSharedVideo) { pfSharedVideo.pause(); }
   }
 
   // Pause ALL videos when leaving feed
