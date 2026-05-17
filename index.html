@@ -1819,7 +1819,7 @@ function buildFeed(){
     const s=document.createElement('div');s.className='reel-slide';s.style.height=h+'px';
     // Build slide HTML with placeholder for video
     s.innerHTML = `<div class="slide-bg" id="vbg_${i}" style="background:${v.bg||'#000'}"></div>
-    ${v.fileUrl && v.fileUrl.startsWith('http') ? `<video id="thumb_${i}" src="${v.fileUrl}#t=0.5" muted playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:opacity .3s;" onloadedmetadata="this.currentTime=0.5;this.pause();"></video>` : ''}
+    ${v.fileUrl && v.fileUrl.startsWith('https://') ? `<video id="thumb_${i}" muted playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:opacity .3s;" onloadedmetadata="this.currentTime=0.1;this.pause();"><source src="${v.fileUrl}"></video>` : ''}
     <div class="vig"></div>
     <div class="ai-badge"><span class="ai-dot"></span>ИИ · Для тебя</div>
     <div class="side-btns" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()">
