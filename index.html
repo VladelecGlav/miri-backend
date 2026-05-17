@@ -907,7 +907,7 @@ html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0
       </div>
     </div>
     <div class="navbar">
-      <div class="nb-item on" onclick="navTo('feed')">
+      <div class="nb-item on" onclick="window._feedLoaded=false;navTo('feed')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 21V12h6v9"/></svg>
         <span>Лента</span>
       </div>
@@ -5137,10 +5137,29 @@ async function loadFollowing() {
 
 function openVideoFromProfile(videoId) {
   const myVids = userVideos || [];
-  if (myVids.length === 0) return;
+  if (myVids.length === 0) { navTo('feed'); return; }
   const tapIdx = myVids.findIndex(v => v.id === videoId);
-  const startIdx = tapIdx >= 0 ? tapIdx : 0;
-  openProfileFeedPopup(myVids, startIdx);
+  const idx = tapIdx >= 0 ? tapIdx : 0;
+  const ordered = [...myVids.slice(idx), ...myVids.slice(0, idx)];
+  serverVideos = ordered.map(v => ({
+    t: v.title,
+    a: v.author?.handle || uName.toLowerCase(),
+    av: (uName||'U')[0].toUpperCase(),
+    avBg: '#F2C12E',
+    id: 'mine',
+    bg: 'linear-gradient(175deg,#0f2027,#203a43,#2c5364)',
+    lk: String(v.likes_count || 0),
+    cm: String(v.comments_count || 0),
+    tg: Array.isArray(v.tags) ? v.tags.map(t=>'#'+t).join(' ') : '',
+    fileUrl: v.file_url,
+    _serverVideo: v,
+  }));
+  _skipFeedReload = true;
+  navTo('feed');
+  requestAnimationFrame(() => {
+    buildFeed();
+    requestAnimationFrame(() => fGoTo(0, false));
+  });
 }
 
 function openProfileFeedPopup(vids, startIdx) {
