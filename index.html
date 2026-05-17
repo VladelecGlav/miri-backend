@@ -6802,8 +6802,10 @@ function navTo(page){
     }
     requestWakeLock();
   }
-  else if(page==='upload'){resetUploadForm();}
-  else if(page==='create'){renderCreate();}
+  else if(page==='upload'){
+    if (!API_TOKEN) { showAuth(); return; }resetUploadForm();}
+  else if(page==='create'){
+    if (!API_TOKEN) { showAuth(); return; }renderCreate();}
   else if(page==='search'){
     if (sharedVideo) { sharedVideo.pause(); sharedVideo.muted = true; }
     setTimeout(function(){ document.getElementById('searchInput')?.focus(); }, 300);
@@ -6813,6 +6815,7 @@ function navTo(page){
     loadNotifications();
   }
   else if(page==='profile'){
+    if (!API_TOKEN) { showAuth(); return; }
     // Stop all feed video
     if (sharedVideo) { sharedVideo.pause(); sharedVideo.muted = true; }
     profTab('v');
@@ -6835,22 +6838,16 @@ function showAuth() {
   try { quickToken = localStorage.getItem('miri_token') || sessionStorage.getItem('miri_token_bak'); } catch(e) {}
   try { quickUser  = localStorage.getItem('miri_user')  || sessionStorage.getItem('miri_user_bak');  } catch(e) {}
 
+  // Always show feed first — auth required only for protected actions
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  var feedPage2 = document.getElementById('pageFeed');
+  if (feedPage2) feedPage2.classList.add('active');
+
   if (quickToken && quickUser) {
-    // Has session — show feed immediately, verify in background
     try {
       var u = JSON.parse(quickUser);
-      if (u && u.id) {
-        API_TOKEN = quickToken;
-        document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-        var feedPage = document.getElementById('pageFeed');
-        if (feedPage) feedPage.classList.add('active');
-      }
+      if (u && u.id) API_TOKEN = quickToken;
     } catch(e) {}
-  } else {
-    // No session — show auth
-    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-    var authPage = document.getElementById('pageAuth');
-    if (authPage) authPage.classList.add('active');
   }
 
   async function restoreSession() {
@@ -6886,14 +6883,22 @@ function showAuth() {
       if (!savedUser)  savedUser  = sessionStorage.getItem('miri_user_bak');
     } catch(e) {}
 
-    if (!savedToken || !savedUser) { showAuth(); return; }
+    if (!savedToken || !savedUser) {
+      // No token — stay on feed as guest
+      navTo('feed');
+      return;
+    }
 
     API_TOKEN = savedToken;
     try {
       var user = JSON.parse(savedUser);
       saveUserData(user);
       updateFollowingCount();
-    } catch(e) { showAuth(); return; }
+    } catch(e) {
+      API_TOKEN = null;
+      navTo('feed');
+      return;
+    }
 
     // 5. Verify token with server
     try {
