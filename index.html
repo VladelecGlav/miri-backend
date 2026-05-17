@@ -5273,7 +5273,7 @@ function pfBuildFeed() {
   pfSharedVideo.loop = true;
   pfSharedVideo.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;background:#000;';
 
-  var h = window.innerHeight;
+  var h = vp.offsetHeight || window.innerHeight;
   track.innerHTML = '';
   track.style.transform = 'translateY(0)';
   track.style.transition = '';
@@ -5282,6 +5282,8 @@ function pfBuildFeed() {
     var s = document.createElement('div');
     s.className = 'reel-slide';
     s.style.height = h + 'px';
+    s.style.width = '100%';
+    s.style.overflow = 'hidden';
     s.dataset.videoUrl = v.fileUrl || '';
 
     // Thumbnail
@@ -5401,11 +5403,12 @@ function pfGoTo(idx, anim) {
   var h = vp.offsetHeight || window.innerHeight;
   if (!anim) {
     track.style.transition = 'none';
+    track.style.transform = 'translateY(' + (-idx * h) + 'px)';
+    requestAnimationFrame(function(){ track.style.transition = ''; });
   } else {
     track.style.transition = 'transform .38s cubic-bezier(.25,.46,.45,.94)';
+    track.style.transform = 'translateY(' + (-idx * h) + 'px)';
   }
-  track.style.transform = 'translateY(' + (-idx * h) + 'px)';
-  if (!anim) requestAnimationFrame(function(){ track.style.transition = ''; });
   setTimeout(function() { pfPlayVideo(idx); }, anim ? 380 : 50);
 }
 
