@@ -6892,13 +6892,23 @@ function showAuth() {
 
 // Fix iOS PWA navbar
 (function fixIOSNavbar() {
-  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  var isStandalone = window.navigator.standalone === true;
-  if (isIOS && isStandalone) {
-    var style = document.createElement('style');
-    style.textContent = '.navbar { padding-bottom: 20px !important; }';
-    document.head.appendChild(style);
+  function applyFix() {
+    var navbars = document.querySelectorAll('.navbar');
+    var windowH = window.innerHeight;
+    var documentH = document.documentElement.clientHeight;
+    var diff = documentH - windowH;
+    if (diff > 0) {
+      navbars.forEach(function(nb) {
+        nb.style.paddingBottom = (diff + 8) + 'px';
+      });
+    } else if (/iphone|ipad|ipod/i.test(navigator.userAgent) && window.navigator.standalone) {
+      navbars.forEach(function(nb) {
+        nb.style.paddingBottom = '34px';
+      });
+    }
   }
+  window.addEventListener('load', applyFix);
+  window.addEventListener('resize', applyFix);
 })();
 
 (function init() {
