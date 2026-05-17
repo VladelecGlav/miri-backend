@@ -1622,7 +1622,7 @@ let feedHasMore = true;
 async function loadUserFeed(page = 1) {
   if (feedLoading) return;
   feedLoading = true;
-  const res = await api('GET', '/api/videos/feed?limit=20&page=' + page);
+  const res = await api('GET', '/api/videos/feed?limit=30&page=' + page);
   feedLoading = false;
   if (res.ok && res.data.videos) {
     const serverVids = res.data.videos.map(v => ({
@@ -2033,6 +2033,10 @@ function fGoTo(idx,anim){
       const v = feedData[fCur];
       if (v && v._serverVideo && v._serverVideo.id) {
         trackView(v._serverVideo.id, fCur);
+      }
+      // Подгружаем следующие видео если близко к концу
+      if (serverVideos && fCur >= serverVideos.length - 5) {
+        loadMoreVideos();
       }
     } catch(e) {}
   }, anim ? 380 : 50);
@@ -6868,9 +6872,9 @@ function navTo(page){
       v.pause(); v.src = '';
     });
     if (_skipFeedReload) {
+      // Открываем видео из профиля/поиска — не трогаем ленту
       _skipFeedReload = false;
     } else if (!window._feedLoaded) {
-      // Загружаем ленту только один раз
       window._feedLoaded = true;
       loadUserFeed();
     }
