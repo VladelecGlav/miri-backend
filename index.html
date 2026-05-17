@@ -4160,7 +4160,8 @@ function upRm(e){
 async function upStart(){
   if(!upHasFile){return;}
 
-  const title = document.querySelector('.up-input')?.value.trim() || upRealFileName || 'Моё видео';
+  const title = document.getElementById('upVideoTitle')?.value?.trim() || document.querySelector('.up-input')?.value?.trim() || upRealFileName || 'Моё видео';
+  const desc  = document.getElementById('upVideoDesc')?.value?.trim() || '';
   const tags  = [...(document.querySelectorAll('.tag.on')||[])].map(t=>t.textContent.replace('#','')).join(',');
   const isPublic = document.getElementById('utpub') ? document.getElementById('utpub').classList.contains('on') : true;
 
