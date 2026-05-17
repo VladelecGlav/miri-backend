@@ -5289,13 +5289,18 @@ function pfBuildFeed() {
     s.innerHTML = '<div class="slide-bg" id="pfvbg_'+i+'" style="background:'+(v.bg||'#000')+'"></div>' +
       thumbHtml +
       '<div class="vig"></div>' +
-      '<div class="slide-info">' +
+      '<div class="slide-info" ontouchstart="event.stopPropagation()">' +
         '<div class="s-author">' +
-          '<div class="s-av" style="background:'+(v.avBg||'#F2C12E')+'">'+(v.av||'M')+'</div>' +
-          '<div class="s-meta"><div class="s-name">@'+(v.a||'')+'</div></div>' +
+          (v._serverVideo?.author?.avatar_url
+            ? '<img src="'+v._serverVideo.author.avatar_url+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.3);flex-shrink:0;">'
+            : '<div class="s-av" style="background:'+(v.avBg||'#F2C12E')+';width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#0b0b0f;flex-shrink:0;">'+(v.av||'M')+'</div>') +
+          '<div class="s-meta">' +
+            '<div class="s-name" style="font-size:14px;font-weight:700;">@'+(v._serverVideo?.author?.handle || v.a||'')+'</div>' +
+            (v._serverVideo?.author?.name ? '<div style="font-size:12px;color:rgba(255,255,255,.5);">'+(v._serverVideo.author.name)+'</div>' : '') +
+          '</div>' +
         '</div>' +
-        '<div class="v-title">'+(v.t||'')+'</div>' +
-        (v._serverVideo?.description ? '<div class="v-desc"><span class="v-desc-text">'+(v._serverVideo.description)+'</span></div>' : '') +
+        '<div class="v-title" style="font-size:15px;font-weight:700;margin-top:6px;">'+(v.t||'')+'</div>' +
+        (v._serverVideo?.description ? '<div class="v-desc"><span class="v-desc-text" id="pfdesc_'+i+'">'+(v._serverVideo.description)+'</span><div class="v-desc-btn" id="pfdescbtn_'+i+'" onclick="pfExpandDesc('+i+')">▼ Раскрыть</div></div>' : '') +
         '<div class="v-tags">'+(v.tg||'')+'</div>' +
       '</div>' +
       '<div class="side-btns">' +
@@ -5382,6 +5387,13 @@ function pfPlayVideo(idx) {
   }
   pfSharedVideo.muted = false;
   pfSharedVideo.play().catch(function() { pfSharedVideo.muted = true; pfSharedVideo.play(); });
+}
+
+function pfExpandDesc(i) {
+  var txt = document.getElementById('pfdesc_' + i);
+  var btn = document.getElementById('pfdescbtn_' + i);
+  if (txt) txt.classList.add('expanded');
+  if (btn) btn.style.display = 'none';
 }
 
 function pfLikeVideo(i) {
