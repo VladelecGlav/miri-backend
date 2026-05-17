@@ -5293,7 +5293,7 @@ function pfBuildFeed() {
     s.innerHTML = '<div class="slide-bg" id="pfvbg_'+i+'" style="background:'+(v.bg||'#000')+'"></div>' +
       thumbHtml +
       '<div class="vig"></div>' +
-      '<div class="slide-info" ontouchstart="event.stopPropagation()" style="bottom:calc(70px + env(safe-area-inset-bottom,0))">' +
+      '<div class="slide-info" ontouchstart="event.stopPropagation()" style="bottom:0;padding-bottom:calc(70px + env(safe-area-inset-bottom,0));">' +
         '<div class="s-author">' +
           (v._serverVideo?.author?.avatar_url
             ? '<img src="'+v._serverVideo.author.avatar_url+'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.3);flex-shrink:0;">'
