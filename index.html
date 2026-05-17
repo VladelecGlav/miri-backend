@@ -6890,6 +6890,17 @@ function showAuth() {
   if (auth) auth.classList.add('active');
 }
 
+// Fix iOS PWA navbar
+(function fixIOSNavbar() {
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var isStandalone = window.navigator.standalone === true;
+  if (isIOS && isStandalone) {
+    var style = document.createElement('style');
+    style.textContent = '.navbar { padding-bottom: 20px !important; }';
+    document.head.appendChild(style);
+  }
+})();
+
 (function init() {
   // Immediately show feed or auth based on stored token — no flash
   var quickToken = null;
