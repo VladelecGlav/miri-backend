@@ -658,8 +658,7 @@ html,body{width:100%;height:100%;min-height:100dvh;overflow:hidden;background:#0
 .user-vg-v{position:absolute;bottom:5px;left:5px;font-size:9px;color:#fff;font-weight:700;display:flex;align-items:center;gap:2px;}
 
 /* NAVBAR */
-.navbar{background:#0a0a0a;border-top:.5px solid rgba(255,255,255,.08);display:flex;justify-content:space-around;align-items:center;padding:8px 0;flex-shrink:0;position:absolute;bottom:0;left:0;right:0;z-index:15;}
-.navbar::after{content:'';position:absolute;bottom:-50px;left:0;right:0;height:50px;background:#0a0a0a;}
+.navbar{background:#0a0a0a;border-top:.5px solid rgba(255,255,255,.08);display:flex;justify-content:space-around;align-items:center;padding:8px 0;flex-shrink:0;position:fixed;bottom:0;left:0;right:0;z-index:15;}
 /* PWA standalone — no address bar, adjust navbar */
 @media all and (display-mode: standalone) {
   .navbar { padding-bottom: env(safe-area-inset-bottom, 0) !important; padding-top: 6px; }
@@ -7113,5 +7112,6 @@ document.addEventListener('webkitfullscreenchange', onFsChange);
 // Prevent scroll bounce
 document.addEventListener('touchmove',e=>{if(e.target.closest('.reel-vp'))e.preventDefault();},{passive:false});
 </script>
+  <div id="iosBar" style="position:fixed;bottom:0;left:0;right:0;height:50px;background:#0a0a0a;z-index:14;pointer-events:none;"></div>
 </body>
 </html>
