@@ -1809,7 +1809,7 @@ function buildFeed(){
     // Build slide HTML with placeholder for video
     s.innerHTML = `<div class="slide-bg" id="vbg_${i}" style="background:${v.bg||'#000'}"></div><div class="vig"></div>
     <div class="ai-badge"><span class="ai-dot"></span>ИИ · Для тебя</div>
-    <div class="side-btns" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()">
+    <div class="side-btns" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()" style="padding-bottom:100px;">
       <div style="position:relative;">
         <div id="speedZone${i}"
           style="position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:100px;height:80px;z-index:10;"
@@ -1837,8 +1837,11 @@ function buildFeed(){
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14" id="followPlusH${i}"/><line x1="16" y1="11" x2="22" y2="11" id="followPlusV${i}"/></svg>
         <span id="followIconLabel${i}">${fFollow.has(i) ? '✓' : '+'}</span>
       </div>
-      ${v._serverVideo && v._serverVideo.playlist_id ? '<div class="s-btn" onclick="openVideoPlaylist(\'' + (v._serverVideo && v._serverVideo.playlist_id) + '\')" ><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F2C12E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span style="color:#F2C12E;">Список</span></div>' : ''}
-      ${isAdmin() ? '<div class="s-btn admin-del-btn" onclick="adminDeleteVideo('+i+')" style="opacity:.8;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg><span style="color:#ef4444;font-size:9px;">Удалить</span></div>' : ''}
+      ${v._serverVideo && v._serverVideo.playlist_id ? '<div class="s-btn" onclick="openVideoPlaylist(\'' + (v._serverVideo && v._serverVideo.playlist_id) + '\')" ><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F2C12E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span style="color:#F2C12E;">Плейлист</span></div>' : ''}
+      <div class="s-btn" onclick="toggleVideoMenu(${i})" id="menuBtn${i}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2.5" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+        <span style="font-size:10px;color:rgba(255,255,255,.4);">Ещё</span>
+      </div>
 
     </div>
     <div class="slide-info" ontouchstart="event.stopPropagation()">
@@ -2239,6 +2242,44 @@ async function fLike(i) {
     store.set('miri_liked_ids', JSON.stringify(likedIds));
   } catch(e) {}
 }
+function toggleVideoMenu(i) {
+  var existing = document.getElementById('videoMenu_' + i);
+  if (existing) { existing.remove(); return; }
+
+  var btn = document.getElementById('menuBtn' + i);
+  if (!btn) return;
+
+  var menu = document.createElement('div');
+  menu.id = 'videoMenu_' + i;
+  menu.style.cssText = 'position:absolute;right:50px;bottom:0;background:#1a1a2e;border:.5px solid rgba(255,255,255,.15);border-radius:12px;padding:4px;z-index:50;min-width:140px;';
+
+  // Report option for everyone
+  var reportBtn = document.createElement('button');
+  reportBtn.style.cssText = 'display:block;width:100%;padding:10px 14px;background:none;border:none;color:rgba(255,255,255,.7);font-size:14px;text-align:left;cursor:pointer;border-radius:8px;font-family:-apple-system,sans-serif;';
+  reportBtn.textContent = '🚩 Пожаловаться';
+  reportBtn.onclick = function(){ menu.remove(); showFeedHint('Жалоба отправлена'); };
+  menu.appendChild(reportBtn);
+
+  // Delete option for admin
+  if (isAdmin()) {
+    var delBtn = document.createElement('button');
+    delBtn.style.cssText = 'display:block;width:100%;padding:10px 14px;background:none;border:none;color:#ef4444;font-size:14px;text-align:left;cursor:pointer;border-radius:8px;font-family:-apple-system,sans-serif;';
+    delBtn.textContent = '🗑 Удалить';
+    delBtn.onclick = function(){ menu.remove(); adminDeleteVideo(i); };
+    menu.appendChild(delBtn);
+  }
+
+  btn.style.position = 'relative';
+  btn.appendChild(menu);
+
+  // Close on outside click
+  setTimeout(function(){
+    document.addEventListener('click', function handler(e){
+      if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', handler); }
+    });
+  }, 100);
+}
+
 async function fFlwIcon(i) {
   if (!API_TOKEN) { showAuth(); return; }
   await fFlw(i);
