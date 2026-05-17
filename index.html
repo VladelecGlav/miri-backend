@@ -7057,13 +7057,14 @@ function navTo(page){
       v.pause(); v.src = '';
     });
     if (_skipFeedReload) {
-      // Открываем видео из профиля/поиска — не трогаем ленту
       _skipFeedReload = false;
+      // профильные видео — не трогаем
+    } else if (window._profileVideosMode) {
+      // в режиме профиля — не перезагружаем
     } else if (!window._feedLoaded) {
       window._feedLoaded = true;
       loadUserFeed();
     }
-    requestWakeLock();
   }
   else if(page==='upload'){
     if (!API_TOKEN) { showAuth(); return; }resetUploadForm();}
