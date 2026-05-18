@@ -2232,6 +2232,17 @@ async function adminDeleteVideo(idx) {
   }
 }
 
+async function adminDeleteTrend(trendId, cardEl) {
+  if (!confirm('Удалить тренд?')) return;
+  const res = await api('DELETE', '/api/trends/' + trendId);
+  if (res.ok) {
+    showFeedHint('✅ Тренд удалён');
+    if (cardEl) cardEl.remove();
+  } else {
+    showFeedHint('Ошибка: ' + (res.data?.error || 'попробуй снова'));
+  }
+}
+
 // ── x2 SPEED ZONE ────────────────────────────────────────
 let _speedTimer = null;
 let _isSpeedMode = false;
